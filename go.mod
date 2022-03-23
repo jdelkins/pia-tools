@@ -1,3 +1,3 @@
-module github.com/jdelkins/pia_wg_pf
+module github.com/jdelkins/pia-tools
 
 go 1.17
