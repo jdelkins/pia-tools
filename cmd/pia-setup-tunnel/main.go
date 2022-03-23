@@ -93,4 +93,7 @@ func main() {
 	if err := fileops.CreateNetworkFile(tun, path_network, path_network_tmpl); err != nil {
 		log.Fatalf("Could not create %s file: %v", path_network, err)
 	}
+	if err := pia.SaveCache(tun); err != nil {
+		log.Fatalf("Could not save cache: %v", err)
+	}
 }

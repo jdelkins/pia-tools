@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 )
 
+const path_cache = "/var/cache/private/"
 
 type Server struct {
 	Ip string `json:"ip"`
@@ -27,7 +29,7 @@ type Tunnel struct {
 	DnsServers   []string `json:"dns_servers"`
 	Token        string   `json:"token"`
 	Message      string   `json:"message"`
-	Interface    string   `json:"wg_if"`
+	Interface    string   `json:"interface"`
 }
 
 const pia_url_servers = "https://serverlist.piaservers.net/vpninfo/servers/v4"
@@ -126,4 +128,31 @@ func ActivateTunnel(tun *Tunnel) error {
 	}
 
 	return nil
+}
+
+func SaveCache(tun *Tunnel) error {
+	path := fmt.Sprintf("%s/PIA_%s.json", path_cache, tun.Interface)
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err := json.NewEncoder(file).Encode(tun); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ReadCache(ifname string) (*Tunnel, error) {
+	path := fmt.Sprintf("%s/PIA_%s.json", path_cache, ifname)
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	var tun Tunnel
+	if err := json.NewDecoder(file).Decode(&tun); err != nil {
+		return nil, err
+	}
+	return &tun, err
 }
