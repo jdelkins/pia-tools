@@ -81,7 +81,7 @@ func main() {
 	if err = gen_keypair(tun); err != nil {
 		log.Fatalf("Could not generate keypair: %v", err)
 	}
-	if err := pia.GetToken(tun, pia_username, pia_password); err != nil {
+	if err := pia.NewToken(tun, pia_username, pia_password); err != nil {
 		log.Fatalf("Could not get token: %v", err)
 	}
 	if err := pia.ActivateTunnel(tun); err != nil {

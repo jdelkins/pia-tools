@@ -27,7 +27,7 @@ type Tunnel struct {
 	PrivateKey   string   `json:"peer_privkey"`
 	PublicKey    string   `json:"peer_pubkey"`
 	DnsServers   []string `json:"dns_servers"`
-	Token        string   `json:"token"`
+	Token        Token    `json:"token"`
 	Message      string   `json:"message"`
 	Interface    string   `json:"interface"`
 }
@@ -82,26 +82,7 @@ func GetServers(region string) (*Tunnel, error) {
 	return nil, fmt.Errorf("get_servers: Region %s not found", region)
 }
 
-func GetToken(tun *Tunnel, username string, password string) error {
-	url := fmt.Sprintf("https://%s/authv3/generateToken", tun.MetaServer.Ip)
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return err
-	}
-	req.SetBasicAuth(username, password)
-	resp, err := do_request(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
 
-	var vals map[string]string
-	if err := json.NewDecoder(resp.Body).Decode(&vals); err != nil {
-		return err
-	}
-	tun.Token = vals["token"]
-	return nil
-}
 
 func ActivateTunnel(tun *Tunnel) error {
 	url := fmt.Sprintf("https://%s:1337/addKey", tun.WgServer.Ip)
@@ -110,7 +91,7 @@ func ActivateTunnel(tun *Tunnel) error {
 		return err
 	}
 	q := req.URL.Query()
-	q.Add("pt", tun.Token)
+	q.Add("pt", tun.Token.Token)
 	q.Add("pubkey", tun.PublicKey)
 	req.URL.RawQuery = q.Encode()
 	resp, err := do_request(req)
