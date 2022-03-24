@@ -42,12 +42,9 @@ func main() {
 		flag.Usage()
 		log.Fatalf("%v", err)
 	}
-	tun, err := pia.ReadCache(wg_if)
-	if err != nil || tun.Region != region {
-		tun, err = pia.GetServers(region)
-		if err != nil {
-			log.Fatalf("Could not determine servers: %v", err)
-		}
+	tun, err := pia.GetServers(region)
+	if err != nil {
+		log.Fatalf("Could not get server list: %v", err)
 	}
 	tun.Interface = wg_if
 	if err = gen_keypair(tun); err != nil {
