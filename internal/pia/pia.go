@@ -34,8 +34,6 @@ type Tunnel struct {
 	PFSig        PortForwardSig `json:",omitempty"`
 }
 
-const pia_url_servers = "https://serverlist.piaservers.net/vpninfo/servers/v4"
-
 func do_request(req *http.Request) (*http.Response, error) {
 	c := &http.Client{
 		Transport: &http.Transport{
@@ -52,6 +50,7 @@ func do_request(req *http.Request) (*http.Response, error) {
 }
 
 func GetServers(region string) (*Tunnel, error) {
+	const pia_url_servers = "https://serverlist.piaservers.net/vpninfo/servers/v4"
 	req, err := http.NewRequest("GET", pia_url_servers, nil)
 	if err != nil {
 		return nil, err
