@@ -23,7 +23,7 @@ func (tun *Tunnel) NewToken(username string, password string) error {
 		return err
 	}
 	req.SetBasicAuth(username, password)
-	resp, err := do_request(req)
+	resp, err := do_request(req, tun.MetaServer.Cn)
 	if err != nil {
 		return err
 	}
