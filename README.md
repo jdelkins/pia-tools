@@ -11,9 +11,25 @@ up your firewall to also forward the port internally to the [rtorrent][] server
 (you're on your own there, but what I do is simply forward almost all ports on
 the firewall's wireguard interface to the rtorrent server).
 
+According to unofficial documentation, [PIA][] requires you to refresh the port
+forwarding assignment every few minutes. The `pia-portforward` utility can do
+this with the `-refresh` flag.
+
+## Caveat emptor
+
+This code is only lightly tested with my own private set up. It may or may not
+work. Patches welcome.
+
 ## Install
 
-    go install github.com/jdelkins/pia-tools@latest
+    go install github.com/jdelkins/pia-tools/cmd/pia-setup-tunnel@latest
+    go install github.com/jdelkins/pia-tools/cmd/pia-portforward@latest
+
+## TODO
+
+- [ ] Make `systemd.service` and `systemd.timer`files for various phases of
+  the tunnel lifecycle
+- [ ] Test
 
 
 [systemd-networkd]: https://www.freedesktop.org/software/systemd/man/systemd.network.html
