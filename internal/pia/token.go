@@ -8,15 +8,15 @@ import (
 )
 
 type Token struct {
-	Token string `json:"token"`
+	Token  string    `json:"token"`
 	Expiry time.Time `json:"expiry"`
 }
 
 func (t Token) Valid() bool {
-	return time.Now().Before(t.Expiry)
+	return t.Token != "" && time.Now().Before(t.Expiry)
 }
 
-func NewToken(tun *Tunnel, username string, password string) error {
+func (tun *Tunnel) NewToken(username string, password string) error {
 	url := fmt.Sprintf("https://%s/authv3/generateToken", tun.MetaServer.Ip)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -36,9 +36,9 @@ func NewToken(tun *Tunnel, username string, password string) error {
 	if vals["status"] != "OK" {
 		return fmt.Errorf("Error generating PIA token: status=\"%s\" message=\"%s\"", vals["status"], vals["message"])
 	}
-	day, _ := time.ParseDuration("24h")
+	day, _ := time.ParseDuration("23h55m")
 	tun.Token = Token{
-		Token: vals["token"],
+		Token:  vals["token"],
 		Expiry: time.Now().Add(day),
 	}
 	return nil

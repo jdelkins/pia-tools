@@ -73,18 +73,23 @@ func main() {
 		flag.Usage()
 		log.Fatalf("%v", err)
 	}
-	tun, err := pia.GetServers(region)
-	if err != nil {
-		log.Fatalf("Could not determine servers: %v", err)
+	tun, err := pia.ReadCache(wg_if)
+	if err != nil || tun.Region != region {
+		tun, err = pia.GetServers(region)
+		if err != nil {
+			log.Fatalf("Could not determine servers: %v", err)
+		}
+		tun.Interface = wg_if
 	}
-	tun.Interface = wg_if
 	if err = gen_keypair(tun); err != nil {
 		log.Fatalf("Could not generate keypair: %v", err)
 	}
-	if err := pia.NewToken(tun, pia_username, pia_password); err != nil {
-		log.Fatalf("Could not get token: %v", err)
+	if !tun.Token.Valid() {
+		if err := tun.NewToken(pia_username, pia_password); err != nil {
+			log.Fatalf("Could not get token: %v", err)
+		}
 	}
-	if err := pia.ActivateTunnel(tun); err != nil {
+	if err := tun.Activate(); err != nil {
 		log.Fatalf("Could not register public key: %v", err)
 	}
 	if err := fileops.CreateNetdevFile(tun, path_netdev, path_netdev_tmpl); err != nil {
@@ -93,7 +98,7 @@ func main() {
 	if err := fileops.CreateNetworkFile(tun, path_network, path_network_tmpl); err != nil {
 		log.Fatalf("Could not create %s file: %v", path_network, err)
 	}
-	if err := pia.SaveCache(tun); err != nil {
+	if err := tun.SaveCache(); err != nil {
 		log.Fatalf("Could not save cache: %v", err)
 	}
 }

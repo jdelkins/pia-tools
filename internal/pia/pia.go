@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-const path_cache = "/var/cache/private/"
+const path_cache = "/var/cache/pia"
 
 type Server struct {
 	Ip string `json:"ip"`
@@ -16,20 +16,22 @@ type Server struct {
 }
 
 type Tunnel struct {
+	Region       string
 	MetaServer   Server
 	WgServer     Server
-	Status       string   `json:"status"`
-	ServerPubkey string   `json:"server_key"`
-	ServerPort   int      `json:"server_port"`
-	ServerIp     string   `json:"server_ip"`
-	ServerVip    string   `json:"server_vip"`
-	PeerIp       string   `json:"peer_ip"`
-	PrivateKey   string   `json:"peer_privkey"`
-	PublicKey    string   `json:"peer_pubkey"`
-	DnsServers   []string `json:"dns_servers"`
-	Token        Token    `json:"token"`
-	Message      string   `json:"message"`
-	Interface    string   `json:"interface"`
+	Status       string         `json:"status"`
+	ServerPubkey string         `json:"server_key"`
+	ServerPort   int            `json:"server_port"`
+	ServerIp     string         `json:"server_ip"`
+	ServerVip    string         `json:"server_vip"`
+	PeerIp       string         `json:"peer_ip"`
+	PrivateKey   string         `json:"peer_privkey"`
+	PublicKey    string         `json:"peer_pubkey"`
+	DnsServers   []string       `json:"dns_servers"`
+	Token        Token          `json:"token"`
+	Message      string         `json:"message"`
+	Interface    string         `json:"interface"`
+	PFSig        PortForwardSig `json:",omitempty"`
 }
 
 const pia_url_servers = "https://serverlist.piaservers.net/vpninfo/servers/v4"
@@ -60,7 +62,7 @@ func GetServers(region string) (*Tunnel, error) {
 	}
 	defer resp.Body.Close()
 
-	var tun Tunnel
+	tun := Tunnel{Region: region}
 	var res struct {
 		Regions []struct {
 			Id      string              `json:"id"`
@@ -82,9 +84,7 @@ func GetServers(region string) (*Tunnel, error) {
 	return nil, fmt.Errorf("get_servers: Region %s not found", region)
 }
 
-
-
-func ActivateTunnel(tun *Tunnel) error {
+func (tun *Tunnel) Activate() error {
 	url := fmt.Sprintf("https://%s:1337/addKey", tun.WgServer.Ip)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -111,9 +111,9 @@ func ActivateTunnel(tun *Tunnel) error {
 	return nil
 }
 
-func SaveCache(tun *Tunnel) error {
-	path := fmt.Sprintf("%s/PIA_%s.json", path_cache, tun.Interface)
-	file, err := os.Create(path)
+func (tun *Tunnel) SaveCache() error {
+	path := fmt.Sprintf("%s/%s.json", path_cache, tun.Interface)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o660)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func SaveCache(tun *Tunnel) error {
 }
 
 func ReadCache(ifname string) (*Tunnel, error) {
-	path := fmt.Sprintf("%s/PIA_%s.json", path_cache, ifname)
+	path := fmt.Sprintf("%s/%s.json", path_cache, ifname)
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -137,3 +137,5 @@ func ReadCache(ifname string) (*Tunnel, error) {
 	}
 	return &tun, err
 }
+
+
