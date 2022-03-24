@@ -30,7 +30,7 @@ work. Patches welcome.
 1. Set up `systemd.netdev` and `systemd.network` template files in
    `/etc/systemd/network` (e.g. `/etc/systemd/network/wg_pia.netdev.tmpl` and
    `/etc/systemd/network/wg_pia.network.tmpl`). These templates use the Go
-   package [`text/template`][https://pkg.go.dev/text/template] to replace
+   package [`text/template`](https://pkg.go.dev/text/template) to replace
    tokens with data received from [PIA][] when requesting the tunnel to be set
    up. For example:
 
@@ -77,8 +77,6 @@ work. Patches welcome.
     [Route]
     Destination={{ . }}/32
     Gateway={{ $gw }}
-    Table=main
-    Scope=global
 
     {{ end -}}
     ```
