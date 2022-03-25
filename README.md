@@ -20,20 +20,53 @@ this with the `-refresh` flag.
 This code is only lightly tested with my own private set up. It may or may not
 work. Patches welcome.
 
-## Install
+## About
+
+[Private Internet Access][PIA] is a solid VPN provider.[^1] In their latest
+generation infrastructure, they designed a system use for by their mobile and
+desktop apps, which allow wireguard tunnels with randomly generated, frequently
+rotated private keys. Unfortunately their Linux app, though I haven't tried it,
+doesn't feel right for my use case, wherein I run the VPN on my firewall,
+a Linux box running [systemd-networkd][], in the manner described below.
+Luckily, however, [PIA][] published their REST API, which is pretty simple to
+use; using it, we can dynamically configure our VPN with this tool suite.
+
+There are a couple of ways to use a VPN. One way is to set it up on your
+workstation or laptop, so that you tunnel through your lan and then the
+internet to the VPN service provider. For most users, this is enough, and for
+that [PIA][] has a nice desktop app that probably works fine.
+
+Another way, if you control your network infrastructure, is to set up your
+LAN's firewall to connect to the VPN service and route all (or some selection)
+of the outgoing LAN traffic through the VPN. This way, any devices on the LAN
+can benefit from the VPN without configuring those devices at all.[^2]
+
+[PIA][] also has a dynamic port forwarding feature that allows you to run
+a server on or behind your VPN endpoint.
+
+Because of the dynamic nature of your enpoint public and virtual IP addresses,
+Wireguard keys, and forwarded ipv4 port, it requires some tooling to set up.
+
+[^1]: I have no affiliation with [PIA][] other than as a customer.
+
+[^2]: One downside of this approach is that network traffic is still
+  unencrypted on the LAN, so if you have any reason to fear privacy gaps at the
+  physical LAN level, this approach is not recommended; stick with the official
+  client app.
+
+## Install Tools
 
     go install github.com/jdelkins/pia-tools/cmd/pia-setup-tunnel@latest
-    go install github.com/jdelkins/pia-tools/cmd/pia-portforward@latest # optional
-    go install github.com/jdelkins/pia-tools/cmd/pia-listregions@latest # optional
+    go install github.com/jdelkins/pia-tools/cmd/pia-portforward@latest     # optional
+    go install github.com/jdelkins/pia-tools/cmd/pia-listregions@latest     # optional
 
-## Configure
+## Configure Tunnel Interface
 
-1. Set up `systemd.netdev` and `systemd.network` template files in
-   `/etc/systemd/network` (e.g. `/etc/systemd/network/<interface>.netdev.tmpl` and
-   `/etc/systemd/network/<interface>.network.tmpl`). These templates use the Go
-   package [`text/template`](https://pkg.go.dev/text/template) to replace
-   tokens with data received from [PIA][] when requesting the tunnel to be set
-   up. For example:
+1. Set up `<interface>.netdev.tmpl` and `<interface>.network.tmpl` template
+   files in `/etc/systemd/network/`. These templates use the Go package
+   [`text/template`](https://pkg.go.dev/text/template) to replace tokens with
+   data received from [PIA][] when requesting the tunnel to be set up. For
+   example:
 
     `/etc/systemd/network/<interface>.netdev.tmpl`
     ```
@@ -82,51 +115,83 @@ work. Patches welcome.
     {{ end -}}
     ```
 
-    For info on what template fields are available, check out [the Tunnel
-    struct in the `pia` package][tun].
+    The above examples should be pretty self-explanatory; if not, you should
+    read up on `systemd-networkd` and/or `text/template`. For info on what
+    other template fields are available (though the above examples demonstrate
+    (I think) all of the useful ones), check out [the Tunnel struct in the
+    `pia` package][tun].
 
 2. `mkdir /var/cache/pia` and set the directory permissions as restrictive as
    you can, probably `root:root` and mode `0700`. This directory will hold
    `.json` files to cache information including your personal access tokens and
    wireguard private keys. These files do not store your [PIA][] username or
-   password, but are still private!
+   password, but should still be treated as private.
 
-3. Run `pia-setup-tunnel -username <user> -password <pass> -ifname <interface>` as
-   root to create the `.network` and `.netdev` files.
+3. Run `pia-setup-tunnel -username <user> -password <pass> -ifname <interface>`
+   as root to create the `.network` and `.netdev` files corresponding to the
+   templates created above. The only messages you see will be errors; if
+   everything works, you will see nothing.
 
-4. Run `systemctl restart systemd-networkd` as root to reload your network
-   stack and activate the tunnel.
+4. Inspect the generated files. If everything looks okay, run `systemctl
+   restart systemd-networkd` as root to reload your network stack and activate
+   the tunnel.
 
-That's it, you have a VPN as your ipv4 default route. Use something like `curl
--4 icanhazip.com` to verify that the ip address is coming from PIA. Every few
-days or weeks, repeat steps 3 and 4 to establish a new tunnel. They are good
-for some period of time, but I replace mine once a week for privacy reasons.
+That's it, you should have a VPN as your ipv4 default route (asssuming you
+configured the `.network` file as such). Use something like `curl -4
+icanhazip.com` to verify that the ip address is coming from PIA. Every few days
+or weeks, repeat steps 3 and 4 to establish a new tunnel. They are good for
+some period of time, but I recommend replacing it once a week for privacy
+reasons.
 
-If this tunnel is on a firewall, and if you also want port forwarding through
-the firewall to an internal (natted) server, then, after confirming the tunnel
-is up, do something like the following. (The following steps are *not
-necessary* if you are simply setting up a tunnel on a client machine.)
+## Enabling Port Forwarding
 
-1. Run `pia-portforward -ifname <interface> -rtorrent
-   http://<rtorrent-ip>:<rtorrent-port>`. This will request a forwarding port,
-   activate it, and then inform [rtorrent][] about the port. You may have to
-   configure [rtorrent][] to accept XML-RPC queries on the `/RPC2` endpoint.
+If you also want incoming traffic on a single TCP port and a single UDP port
+(both with the same port number) to be forwarded to your VPN endpoint, then
+follow the procedure below.
 
-   **Note:** Don't include the `/RPC2` URL component in the `-rtorrent`
+**Note ☞**  The following steps are *not necessary* if you are simply setting up
+a tunnel on a client machine. This is for running a server of some kind
+accessible through the VPN.
+
+1. Make sure your wireguard tunnel to PIA is up and running per the above
+   procedure. The following step presumes that you have a working route to
+   PIA's Wireguard endpoint virtual IP configured and working. It also assumes
+   that, as part of running the above procedure, the `pia-setup-tunnel` tool
+   saved some information in the file `/var/cache/pia/<interface>.json`. We
+   will read that file and add to it as part of the next step.
+
+2. Run `pia-portforward -ifname <interface> -rtorrent
+   http://<rtorrent-ip>:<rtorrent-port>`. This will request a forwarding port
+   from [PIA][], activate it, and then inform [rtorrent][] about the port. You
+   may have to configure [rtorrent][] to accept XML-RPC queries on the `/RPC2`
+   endpoint.
+
+   **Note ☞**  Don't include the `/RPC2` URL component in the `-rtorrent`
    parameter, as this is added automatically.
 
-2. Make sure your firewall rules are forwarding the port. (You can inspect or
-   parse `/var/cache/pia/<interface>.json` to determine the port number).
+   If you don't have an [rtorrent][] server running (or just don't want to use
+   the forwarded port for that), then just leave off the `-rtorrent` option.
+   You're on your own to parse `/var/cache/pia/<interface>.json` to obtain the
+   assigned port and do something with it.
 
-3. Every 15 minutes or so (presumably using `cron` or similar), run
-   `pia-portforward -ifname <interface> -refresh` in order to refresh the
-   assignment.
+3. If you are running the VPN endpoint on a firewall, make sure your firewall
+   rules are forwarding or redirecting the port where you want it. (You can
+   inspect or parse `/var/cache/pia/<interface>.json` to determine the port
+   number if you need it). Alternatively, you can just run [rtorrent][] (or
+   whatever) on the firewall host, and configure the server to listen on PIA's
+   assigned port.
+
+4. Every 15 minutes or so (presumably using `cron` or similar), run
+   `pia-portforward -ifname <interface> -refresh` in order to refresh the port
+   forwarding assignment. If not, PIA may reclaim the port for another
+   customer.
 
 ## TODO
 
 - [ ] Make `systemd.service` and `systemd.timer`files for various phases of
   the tunnel lifecycle
 - [ ] Test under more scenarios
+- [ ] Implement PIA's dynamic IP (DIP) feature
 
 
 [systemd-networkd]: https://www.freedesktop.org/software/systemd/man/systemd.network.html
