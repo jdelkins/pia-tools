@@ -23,13 +23,14 @@ work. Patches welcome.
 ## Install
 
     go install github.com/jdelkins/pia-tools/cmd/pia-setup-tunnel@latest
-    go install github.com/jdelkins/pia-tools/cmd/pia-portforward@latest
+    go install github.com/jdelkins/pia-tools/cmd/pia-portforward@latest # optional
+    go install github.com/jdelkins/pia-tools/cmd/pia-listregions@latest # optional
 
 ## Configure
 
 1. Set up `systemd.netdev` and `systemd.network` template files in
-   `/etc/systemd/network` (e.g. `/etc/systemd/network/wg_pia.netdev.tmpl` and
-   `/etc/systemd/network/wg_pia.network.tmpl`). These templates use the Go
+   `/etc/systemd/network` (e.g. `/etc/systemd/network/<interface>.netdev.tmpl` and
+   `/etc/systemd/network/<interface>.network.tmpl`). These templates use the Go
    package [`text/template`](https://pkg.go.dev/text/template) to replace
    tokens with data received from [PIA][] when requesting the tunnel to be set
    up. For example:
@@ -90,7 +91,7 @@ work. Patches welcome.
    wireguard private keys. These files do not store your [PIA][] username or
    password, but are still private!
 
-3. Run `pia-setup-tunnel -username <user> -password <pass> -ifname wg_pia` as
+3. Run `pia-setup-tunnel -username <user> -password <pass> -ifname <interface>` as
    root to create the `.network` and `.netdev` files.
 
 4. Run `systemctl restart systemd-networkd` as root to reload your network
