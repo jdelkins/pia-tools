@@ -130,8 +130,13 @@ func GetServers(region string) (*Tunnel, error) {
 
 	for r := range res.Regions {
 		if res.Regions[r].Id == region {
-			tun.MetaServer = res.Regions[r].Servers["meta"][0]
-			tun.WgServer = res.Regions[r].Servers["wg"][0]
+			metas, has_meta := res.Regions[r].Servers["meta"]
+			wgs, has_wg := res.Regions[r].Servers["wg"]
+			if !has_meta || !has_wg {
+				return nil, fmt.Errorf("GetServers: region %s doesn't support wireguard", region)
+			}
+			tun.MetaServer = metas[0]
+			tun.WgServer = wgs[0]
 			return &tun, nil
 		}
 	}
