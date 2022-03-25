@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"text/template"
 
+	"github.com/Masterminds/sprig"
 	"github.com/jdelkins/pia-tools/internal/pia"
 )
 
@@ -27,7 +28,7 @@ func create_file(path string, gid int, perm fs.FileMode) (*os.File, error) {
 
 func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error {
 	// Generate .netdev
-	nd_tmpl, err := template.ParseFiles(template_path)
+	nd_tmpl, err := template.New(tun.Interface + ".netdev.tmpl").Funcs(sprig.TxtFuncMap()).ParseFiles(template_path)
 	if err != nil {
 		return err
 	}
@@ -56,7 +57,7 @@ func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error 
 }
 
 func CreateNetworkFile(tun *pia.Tunnel, output_path, template_path string) error {
-	tmpl, err := template.ParseFiles(template_path)
+	tmpl, err := template.New(tun.Interface + ".network.tmpl").Funcs(sprig.TxtFuncMap()).ParseFiles(template_path)
 	if err != nil {
 		return err
 	}

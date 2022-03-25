@@ -119,7 +119,9 @@ Wireguard keys, and forwarded ipv4 port, it requires some tooling to set up.
     read up on `systemd-networkd` and/or `text/template`. For info on what
     other template fields are available (though the above examples demonstrate
     (I think) all of the useful ones), check out [the Tunnel struct in the
-    `pia` package][tun].
+    `pia` package][tun]. The template processing package includes [sprig][],
+    which provides a number of additional template functions, should they come
+    in handy.
 
 2. `mkdir /var/cache/pia` and set the directory permissions as restrictive as
    you can, probably `root:root` and mode `0700`. This directory will hold
@@ -199,3 +201,4 @@ accessible through the VPN.
 [PIA]: https://www.privateinternetaccess.com/
 [rtorrent]: https://github.com/rakshasa/rtorrent
 [tun]: https://github.com/jdelkins/pia-tools/blob/09ebfbe23d457cca3bf28a0a9a27c028311bc752/internal/pia/pia.go#L20
+[sprig]: http://masterminds.github.io/sprig/
