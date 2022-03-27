@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 
 	"github.com/jdelkins/pia-tools/internal/pia"
@@ -76,4 +77,5 @@ func main() {
 	if err := tun.BindPF(); err != nil {
 		log.Fatalf("Could not pind port forwarding assignment: %v", err)
 	}
+	fmt.Printf("%s: %s\n", tun.Status, tun.Message)
 }

@@ -77,5 +77,7 @@ func (tun *Tunnel) BindPF() error {
 	if r.Status != "OK" {
 		return fmt.Errorf("Could not bind port forward assignment: status=\"%s\" message=\"%s\"", r.Status, r.Message)
 	}
+	tun.Status = r.Status
+	tun.Message = r.Message
 	return nil
 }
