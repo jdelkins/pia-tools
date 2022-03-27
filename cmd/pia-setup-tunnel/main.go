@@ -67,4 +67,5 @@ func main() {
 	if err := tun.SaveCache(); err != nil {
 		log.Fatalf("Could not save cache: %v", err)
 	}
+	fmt.Println(tun.Status)
 }
