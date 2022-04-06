@@ -11,7 +11,7 @@ import (
 	"github.com/jdelkins/pia-tools/internal/pia"
 )
 
-func create_file(path string, gid int, perm fs.FileMode) (*os.File, error) {
+func createFile(path string, gid int, perm fs.FileMode) (*os.File, error) {
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
 	if err != nil {
 		return nil, err
@@ -43,7 +43,7 @@ func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error 
 		return err
 	}
 
-	file, err := create_file(output_path, gid, 0o640)
+	file, err := createFile(output_path, gid, 0o640)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func CreateNetworkFile(tun *pia.Tunnel, output_path, template_path string) error
 		return err
 	}
 
-	file, err := create_file(output_path, 0, 0o644)
+	file, err := createFile(output_path, 0, 0o644)
 	if err != nil {
 		return err
 	}

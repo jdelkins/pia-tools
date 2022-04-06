@@ -9,7 +9,7 @@ import (
 	"github.com/jdelkins/pia-tools/internal/pia"
 )
 
-func gen_keypair(tun *pia.Tunnel) error {
+func genKeypair(tun *pia.Tunnel) error {
 	privkey_b, err := exec.Command("wg", "genkey").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%v; %s", err, privkey_b)

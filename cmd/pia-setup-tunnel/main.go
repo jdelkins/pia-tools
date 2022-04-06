@@ -20,7 +20,7 @@ var (
 	wg_if             string
 )
 
-func parse_args() error {
+func parseArgs() error {
 	const path_sn = "/etc/systemd/network"
 	flag.StringVar(&wg_if, "ifname", "pia", "name of interface \"IF\", where the systemd-networkd files will be called /etc/systemd/network/IF.{netdev,network}")
 	flag.StringVar(&pia_username, "username", "", "PIA username")
@@ -38,34 +38,36 @@ func parse_args() error {
 }
 
 func main() {
-	if err := parse_args(); err != nil {
+	if err := parseArgs(); err != nil {
 		flag.Usage()
-		log.Fatalf("%v", err)
+		log.Panicf("%v", err)
 	}
 	tun, err := pia.GetServers(region)
 	if err != nil {
-		log.Fatalf("Could not get server list: %v", err)
+		log.Panicf("Could not get server list: %v", err)
 	}
 	tun.Interface = wg_if
-	if err = gen_keypair(tun); err != nil {
-		log.Fatalf("Could not generate keypair: %v", err)
+	defer func() {
+		if err := tun.SaveCache(); err != nil {
+			log.Panicf("Could not save cache: %v", err)
+		}
+	}()
+	if err = genKeypair(tun); err != nil {
+		log.Panicf("Could not generate keypair: %v", err)
 	}
 	if !tun.Token.Valid() {
 		if err := tun.NewToken(pia_username, pia_password); err != nil {
-			log.Fatalf("Could not get token: %v", err)
+			log.Panicf("Could not get token: %v", err)
 		}
 	}
 	if err := tun.Activate(); err != nil {
-		log.Fatalf("Could not register public key: %v", err)
+		log.Panicf("Could not register public key: %v", err)
 	}
 	if err := fileops.CreateNetdevFile(tun, path_netdev, path_netdev_tmpl); err != nil {
-		log.Fatalf("Could not create %s file: %v", path_netdev, err)
+		log.Panicf("Could not create %s file: %v", path_netdev, err)
 	}
 	if err := fileops.CreateNetworkFile(tun, path_network, path_network_tmpl); err != nil {
-		log.Fatalf("Could not create %s file: %v", path_network, err)
-	}
-	if err := tun.SaveCache(); err != nil {
-		log.Fatalf("Could not save cache: %v", err)
+		log.Panicf("Could not create %s file: %v", path_network, err)
 	}
 	fmt.Println(tun.Status)
 }

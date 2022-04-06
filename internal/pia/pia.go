@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-const path_cache = "/var/cache/pia"
+const pathCache = "/var/cache/pia"
 
 type Server struct {
 	Ip string `json:"ip"`
@@ -36,10 +36,10 @@ type Tunnel struct {
 	PFSig        PortForwardSig `json:",omitempty"`
 }
 
-var _pia_certpool *x509.CertPool = nil
+var _piaCertpool *x509.CertPool = nil
 
-func get_pia_certpool() *x509.CertPool {
-	if _pia_certpool == nil {
+func getPiaCertpool() *x509.CertPool {
+	if _piaCertpool == nil {
 		p, _ := pem.Decode([]byte(`
 -----BEGIN CERTIFICATE-----
 MIIHqzCCBZOgAwIBAgIJAJ0u+vODZJntMA0GCSqGSIb3DQEBDQUAMIHoMQswCQYD
@@ -86,18 +86,18 @@ iyd1Fzx0yujuiXDROLhISLQDRjVVAvawrAtLZWYK31bY7KlezPlQnl/D9Asxe85l
 -----END CERTIFICATE-----
 		`))
 		ca, _ := x509.ParseCertificate(p.Bytes)
-		_pia_certpool = x509.NewCertPool()
-		_pia_certpool.AddCert(ca)
+		_piaCertpool = x509.NewCertPool()
+		_piaCertpool.AddCert(ca)
 	}
-	return _pia_certpool
+	return _piaCertpool
 }
 
-func do_request(req *http.Request, server_name string) (*http.Response, error) {
+func doRequest(req *http.Request, server_name string) (*http.Response, error) {
 	c := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				ServerName: server_name,
-				RootCAs:    get_pia_certpool(),
+				RootCAs:    getPiaCertpool(),
 			},
 		},
 	}
@@ -128,10 +128,10 @@ func GetServers(region string) (*Tunnel, error) {
 		return nil, err
 	}
 
-	for r := range res.Regions {
-		if res.Regions[r].Id == region {
-			metas, has_meta := res.Regions[r].Servers["meta"]
-			wgs, has_wg := res.Regions[r].Servers["wg"]
+	for _, r := range res.Regions {
+		if r.Id == region {
+			metas, has_meta := r.Servers["meta"]
+			wgs, has_wg := r.Servers["wg"]
 			if !has_meta || !has_wg {
 				return nil, fmt.Errorf("GetServers: region %s doesn't support wireguard", region)
 			}
@@ -153,7 +153,7 @@ func (tun *Tunnel) Activate() error {
 	q.Add("pt", tun.Token.Token)
 	q.Add("pubkey", tun.PublicKey)
 	req.URL.RawQuery = q.Encode()
-	resp, err := do_request(req, tun.WgServer.Cn)
+	resp, err := doRequest(req, tun.WgServer.Cn)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (tun *Tunnel) Activate() error {
 }
 
 func (tun *Tunnel) SaveCache() error {
-	path := fmt.Sprintf("%s/%s.json", path_cache, tun.Interface)
+	path := fmt.Sprintf("%s/%s.json", pathCache, tun.Interface)
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o660)
 	if err != nil {
 		return err
@@ -184,7 +184,7 @@ func (tun *Tunnel) SaveCache() error {
 }
 
 func ReadCache(ifname string) (*Tunnel, error) {
-	path := fmt.Sprintf("%s/%s.json", path_cache, ifname)
+	path := fmt.Sprintf("%s/%s.json", pathCache, ifname)
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
