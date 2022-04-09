@@ -52,7 +52,7 @@ func main() {
 		}
 	}
 	if err := tun.BindPF(); err != nil {
-		log.Panicf("Could not pind port forwarding assignment: %v", err)
+		log.Panicf("Could not bind port forwarding assignment: %v", err)
 	}
 	if rtorrent_url != "" {
 		if err := rtorrent.Notify(rtorrent_url, tun.PFSig.Port); err != nil {
