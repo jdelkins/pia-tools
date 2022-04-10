@@ -18,6 +18,14 @@ func Notify(url string, port int) error {
 	if err := client.Call("network.port_range.set", p, nil); err != nil {
 		return err
 	}
+	// apparently a second call is necessary to re-bind the listeners
+	p = []interface{}{
+		"",
+		"0.0.0.0",
+	}
+	if err := client.Call("network.bind_address.set", p, nil); err != nil {
+		return err
+	}
 	return nil
 }
 
