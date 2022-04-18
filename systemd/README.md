@@ -18,12 +18,14 @@ Assumes:
 
 1. Clone the repo and copy or link the files into place
 
-        $ somewhere=~/Code/pia-tools
-        $ git clone https://github.com/jdelkins/pia-tools $somewhere
-        $ ln -s $somewhere/systemd/system/*.{timer,service} /etc/systemd/system/
-        $ cp $somewhere/systemd/network/*.tmpl /etc/systemd/network/
-        $ cp $somewhere/systemd/pia.conf /etc/pia.conf
-        $ mkdir /var/cache/pia/
+    <pre><code>
+    $ <i>repo</i>=~/Code/pia-tools
+    $ git clone https://github.com/jdelkins/pia-tools $<i>repo</i>
+    $ ln -s $<i>repo</i>/systemd/system/*.{timer,service} /etc/systemd/system/
+    $ cp $<i>repo</i>/systemd/network/*.tmpl /etc/systemd/network/
+    $ cp $<i>repo</i>/systemd/pia.conf /etc/pia.conf
+    $ mkdir /var/cache/pia/
+    </code></pre>
 
 2. Edit `/etc/pia.conf` and set variables according to your setup.
 
@@ -39,19 +41,25 @@ Assumes:
 5. If you don't wish to use the rtorrent notification feature, edit the
    `.service` files and remove the `-rtorrent $RTORRENT_URL` parts.
 
-6. Enable the timers:
+6. Enable the timers. Use whatever interface name you want in place of `wgpia0`.
 
-        $ systemctl enable --now pia-reset-tunnel.timer
-        $ systemctl enable --now pia-pf-refresh.timer
+        $ systemctl enable --now pia-reset-tunnel@wgpia0.timer
+        $ systemctl enable --now pia-pf-refresh@wgpia0.timer
 
 7. If you don't wish to use the port forwarding setup, then you don't need
-   `pia-pf-refresh.timer`. In this case, you might want to also edit
-   `pia-reset-tunnel.service` since it also reconfigures the forwarded port
-   after the new tunnel comes back up.
+   `pia-pf-refresh@.timer`. In this case, you might also want to also edit
+   `pia-reset-tunnel@.service` (e.g. `systemctl edit pia-tunnel-reset@wgpia0.service`)
+   since it also reconfigures the forwarded port after the new tunnel comes
+   back up. If you don't install the `pia-portfward` binary, the port
+   forwarding configuration will fail harmlessly.
 
-8. If you want to get your tunnel up now, run the reset service by hand:
+8. If you want to get your tunnel up now, run the reset service by hand as
+   follows. This service first tears down the existing configuration (as it is
+   intended to reconfigure the tunnel with a completely new private key and,
+   hopefully, a different public ip address), but if the interface doesn't
+   already exist, the tear-down steps will fail harmlessly.
 
-        $ systemctl start pia-reset-tunnel.service
+        $ systemctl start pia-reset-tunnel@wgpia0.service
 
 9. Test your setup:
 

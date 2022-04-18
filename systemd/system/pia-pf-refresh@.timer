@@ -1,5 +1,5 @@
 [Unit]
-Description=Refresh PIA port forwarding timer
+Description=Refresh PIA port forwarding timer on %I
 
 [Timer]
 OnCalendar=*-*-* *:00/15:00

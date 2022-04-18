@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh PIA port forward assignment on %I
+ConditionFileIsExecutable=/usr/local/bin/pia-portforward
+ConditionFileNotEmpty=/var/cache/pia/%I.json
+ConditionPathExists=/etc/pia.conf
+
+[Service]
+EnvironmentFile=/etc/pia.conf
+Type=oneshot
+ExecStart=/usr/local/bin/pia-portforward -ifname %I -username $PIA_USERNAME -password $PIA_PASSWORD -refresh -rtorrent $RTORRENT_URL

@@ -1,5 +1,5 @@
 [Unit]
-Description=Reset PIA WireGuard tunnel timer
+Description=Reset PIA WireGuard tunnel on %I
 
 [Timer]
 OnCalendar=Wed *-*-* 03:00:00
