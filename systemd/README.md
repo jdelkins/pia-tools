@@ -9,7 +9,8 @@ Assumes:
 - You use **systemd-networkd** for your network stack
 - You have installed the accompanying go tools:
 
-        $ GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd@latest
+        $ GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-setup-tunnel@latest
+        $ GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-portforward@latest
 
 [PIA]: https://privateinternetaccess.com
 
