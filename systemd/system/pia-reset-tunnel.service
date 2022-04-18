@@ -1,0 +1,14 @@
+[Unit]
+Description=Reconfigure PIA VPN tunnel
+
+[Service]
+EnvironmentFile=/etc/pia.conf
+Type=oneshot
+ExecStart=/usr/local/bin/pia-setup-tunnel -username $PIA_USERNAME -password $PIA_PASSWORD -ifname $PIA_INTERFACE
+ExecStartPost=-/usr/bin/ip link set down dev $PIA_INTERFACE
+ExecStartPost=-/usr/bin/ip link del $PIA_INTERFACE
+ExecStartPost=/usr/bin/networkctl reload
+ExecStartPost=/usr/bin/networkctl reconfigure $PIA_INTERFACE
+ExecStartPost=/usr/bin/networkctl up $PIA_INTERFACE
+ExecStartPost=/usr/bin/sleep 10
+ExecStartPost=/usr/local/bin/pia-portforward -ifname $PIA_INTERFACE -rtorrent $RTORRENT_URL

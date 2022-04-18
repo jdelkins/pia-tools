@@ -1,0 +1,29 @@
+{{- $if := .Interface -}}
+{{- $gw := .ServerVip -}}
+
+[Match]
+Name={{ $if }}
+
+[Network]
+Address={{ .PeerIp }}/32
+{{- range .DnsServers }}
+DNS={{ . }}%{{ $if }}
+{{- end }}
+
+[Route]
+Destination={{ $gw }}/32
+Scope=link
+
+{{ range .DnsServers -}}
+[Route]
+Destination={{ . }}/32
+Gateway={{ $gw }}
+GatewayOnLink=true
+
+{{ end -}}
+
+[Route]
+Destination=0.0.0.0/0
+Gateway={{ $gw }}
+GatewayOnLink=true
+Scope=global

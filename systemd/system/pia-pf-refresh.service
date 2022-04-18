@@ -1,0 +1,7 @@
+[Unit]
+Description=Refresh PIA port forward assignment periodically
+
+[Service]
+EnvironmentFile=/etc/pia.conf
+Type=oneshot
+ExecStart=/usr/local/bin/pia-portforward -ifname $PIA_INTERFACE -username $PIA_USERNAME -password $PIA_PASSWORD -refresh -rtorrent $RTORRENT_URL

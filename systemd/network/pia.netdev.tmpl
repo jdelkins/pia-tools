@@ -1,0 +1,12 @@
+[NetDev]
+Name={{ .Interface }}
+Kind=wireguard
+
+[WireGuard]
+PrivateKey={{ .PrivateKey }}
+
+[WireGuardPeer]
+PublicKey={{ .ServerPubkey }}
+AllowedIPs=0.0.0.0/0
+Endpoint={{ .ServerIp }}:{{ .ServerPort }}
+PersistentKeepalive=25

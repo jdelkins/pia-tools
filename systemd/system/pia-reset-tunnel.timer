@@ -1,0 +1,9 @@
+[Unit]
+Description=Reset PIA WireGuard tunnel timer
+
+[Timer]
+OnCalendar=Wed *-*-* 03:00:00
+RandomizedDelaySec=12h
+
+[Install]
+WantedBy=timers.target
