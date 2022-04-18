@@ -27,7 +27,24 @@ Assumes:
     $ mkdir /var/cache/pia/
     </code></pre>
 
-2. Edit `/etc/pia.conf` and set variables according to your setup.
+2. Edit `/etc/pia.conf` and set variables according to your setup. For
+   `PIA_REGION` you can use the included `pia-listregions` utility to choose
+   a region id with a low ping time and the desired feature set. To use that,
+   install then run it:
+
+        $ GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-listregions@latest
+        $ /usr/local/bin/pia-listregions
+        ID                 NAME                         PING       WG?  PF?
+        ==============     =======================      =========  ===  ===
+        us_houston         US Houston                   25 ms       ✓
+        us_south_west      US Texas                     30 ms       ✓
+        us_atlanta         US Atlanta                   38 ms       ✓
+        us_denver          US Denver                    39 ms       ✓
+        bogota             Colombia                     46 ms       ✓    ✓
+        santiago           Chile                        46 ms       ✓    ✓
+        us_florida         US Florida                   47 ms       ✓
+        ar                 Argentina                    48 ms       ✓    ✓
+        ...
 
 3. Edit the `/etc/systemd/network/*.tmpl` files to define how your tunnel will
    be configured. The provided template files set a default route through the
