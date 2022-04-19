@@ -108,7 +108,7 @@ func doRequest(req *http.Request, server_name string) (*http.Response, error) {
 	return resp, nil
 }
 
-func GetServers(region string) (*Tunnel, error) {
+func Servers(region string) (*Tunnel, error) {
 	const pia_url_servers = "https://serverlist.piaservers.net/vpninfo/servers/v4"
 	resp, err := http.Get(pia_url_servers)
 	if err != nil {

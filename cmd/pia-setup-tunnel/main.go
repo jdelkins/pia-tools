@@ -25,7 +25,7 @@ func parseArgs() error {
 	flag.StringVar(&wg_if, "ifname", "pia", "name of interface \"IF\", where the systemd-networkd files will be called /etc/systemd/network/IF.{netdev,network}")
 	flag.StringVar(&pia_username, "username", "", "PIA username")
 	flag.StringVar(&pia_password, "password", "", "PIA password")
-	flag.StringVar(&region, "region", "ca_toronto", "PIA region id")
+	flag.StringVar(&region, "region", "auto", "PIA region id")
 	flag.Parse()
 	if pia_username == "" || pia_password == "" {
 		return fmt.Errorf("Username and/or password were not provided")
@@ -42,7 +42,26 @@ func main() {
 		flag.Usage()
 		log.Panicf("%v", err)
 	}
-	tun, err := pia.GetServers(region)
+	orig_region := region
+	if region == "auto" || region == "" {
+		regions, err := pia.Regions()
+		if err != nil {
+			log.Panicf("Could not enumerate regions: %v", err)
+		}
+		// region list should be sorted by ping time from best to worst, so we
+		// just need to find the first one in the list that has both port
+		// forwarding and wireguard
+		for i := range regions {
+			if regions[i].HasWg() && regions[i].PortForward {
+				region = regions[i].Id
+				fmt.Printf("Selected region %s\n", region)
+			}
+		}
+	}
+	if region == orig_region {
+		log.Panicln("Could not find a suitable region")
+	}
+	tun, err := pia.Servers(region)
 	if err != nil {
 		log.Panicf("Could not get server list: %v", err)
 	}
