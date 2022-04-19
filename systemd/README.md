@@ -29,8 +29,11 @@ Assumes:
 
 2. Edit `/etc/pia.conf` and set variables according to your setup. For
    `PIA_REGION` you can use the included `pia-listregions` utility to choose
-   a region id with a low ping time and the desired feature set. To use that,
-   install then run it:
+   a region id with a low ping time and the desired feature set, or, simply
+   specify the special region "auto" to select the region with the lowest ping
+   time.
+
+   To use the `pia-listregions` tool, install then run it like this:
 
         $ GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-listregions@latest
         $ /usr/local/bin/pia-listregions

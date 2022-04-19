@@ -42,7 +42,6 @@ func main() {
 		flag.Usage()
 		log.Panicf("%v", err)
 	}
-	orig_region := region
 	if region == "auto" || region == "" {
 		regions, err := pia.Regions()
 		if err != nil {
@@ -55,10 +54,11 @@ func main() {
 			if regions[i].HasWg() && regions[i].PortForward {
 				region = regions[i].Id
 				fmt.Printf("Selected region %s\n", region)
+				break
 			}
 		}
 	}
-	if region == orig_region {
+	if region == "auto" || region == "" {
 		log.Panicln("Could not find a suitable region")
 	}
 	tun, err := pia.Servers(region)
