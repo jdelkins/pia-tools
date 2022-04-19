@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
 	"sync"
 	"time"
@@ -115,8 +116,16 @@ func FindRegion(id string) (*Region, error) {
 		return nil, err
 	}
 	for i := range regions {
-		if regions[i].Id == id {
-			return &regions[i], nil
+		r := &regions[i]
+		if r.Id == id {
+			if r.WgServer() == nil {
+				return nil, fmt.Errorf("Region %s (%s) was found but does not have a WireGuard server", r.Id, r.Name)
+			}
+			r.setPingTime()
+			if r.PingTime == 0 {
+				fmt.Fprintf(os.Stderr, "Warning: WireGuard server for region %s (%s) is not currently reachable at %s", r.Id, r.Name, r.WgServer().Ip)
+			}
+			return r, nil
 		}
 	}
 	return nil, fmt.Errorf("Could not find region %s", id)

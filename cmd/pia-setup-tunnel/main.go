@@ -16,7 +16,7 @@ var (
 	path_network_tmpl string
 	pia_username      string
 	pia_password      string
-	region            string
+	reg_id            string
 	wg_if             string
 )
 
@@ -25,7 +25,7 @@ func parseArgs() error {
 	flag.StringVar(&wg_if, "ifname", "pia", "name of interface \"IF\", where the systemd-networkd files will be called /etc/systemd/network/IF.{netdev,network}")
 	flag.StringVar(&pia_username, "username", "", "PIA username")
 	flag.StringVar(&pia_password, "password", "", "PIA password")
-	flag.StringVar(&region, "region", "auto", "PIA region id")
+	flag.StringVar(&reg_id, "region", "auto", "PIA region id")
 	flag.Parse()
 	if pia_username == "" || pia_password == "" {
 		return fmt.Errorf("Username and/or password were not provided")
@@ -43,8 +43,9 @@ func main() {
 		log.Panicf("%v", err)
 	}
 
-	// Find the "best" region if requested
-	if region == "auto" || region == "" {
+	// Find the "best" reg_id if requested
+	var reg *pia.Region
+	if reg_id == "auto" || reg_id == "" {
 		regions, err := pia.RegionsWithPingTime()
 		if err != nil {
 			log.Panicf("Could not enumerate regions: %v", err)
@@ -55,20 +56,20 @@ func main() {
 		for i := range regions {
 			r := &regions[i]
 			if r.HasWg() && r.PortForward {
-				region = r.Id
+				reg = r
 				fmt.Printf("Selected region %s (%s), having ping time %d ms\n", r.Id, r.Name, r.PingTime.Milliseconds())
 				break
 			}
 		}
 	}
 
-	// Make sure the provided region supports WG
-	reg, err := pia.FindRegion(region)
-	if err != nil {
-		log.Panicf("%v", err)
-	}
-	if !reg.HasWg() {
-		log.Panicf("Region %s (%s) does not support WireGuard at this time", reg.Id, reg.Name)
+	// Get configured region details, if not "auto"
+	if reg == nil {
+		var err error
+		reg, err = pia.FindRegion(reg_id)
+		if err != nil {
+			log.Panicf("%v", err)
+		}
 	}
 
 	// Create a Tunnel struct and populate it with fresh WG keys and an access token
@@ -78,7 +79,7 @@ func main() {
 			log.Panicf("Could not save cache: %v", err)
 		}
 	}()
-	if err = genKeypair(tun); err != nil {
+	if err := genKeypair(tun); err != nil {
 		log.Panicf("Could not generate keypair: %v", err)
 	}
 	if !tun.Token.Valid() {
@@ -87,7 +88,7 @@ func main() {
 		}
 	}
 
-	// Register the WG keys
+	// Register the WG keys to our account (identified by access token)
 	if err := tun.Activate(); err != nil {
 		log.Panicf("Could not register public key: %v", err)
 	}
