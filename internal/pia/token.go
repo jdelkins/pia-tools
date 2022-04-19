@@ -17,13 +17,13 @@ func (t Token) Valid() bool {
 }
 
 func (tun *Tunnel) NewToken(username string, password string) error {
-	url := fmt.Sprintf("https://%s/authv3/generateToken", tun.MetaServer.Ip)
+	url := fmt.Sprintf("https://%s/authv3/generateToken", tun.Region.MetaServer().Ip)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
 	req.SetBasicAuth(username, password)
-	resp, err := doRequest(req, tun.MetaServer.Cn)
+	resp, err := doRequest(req, tun.Region.MetaServer().Cn)
 	if err != nil {
 		return err
 	}

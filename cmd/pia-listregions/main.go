@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	regions, err := pia.Regions()
+	regions, err := pia.RegionsWithPingTime()
 	if err != nil {
 		log.Fatalf("%v", err)
 	}

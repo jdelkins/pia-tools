@@ -18,9 +18,7 @@ type Server struct {
 }
 
 type Tunnel struct {
-	Region       string
-	MetaServer   Server
-	WgServer     Server
+	Region       Region
 	Status       string         `json:"status"`
 	ServerPubkey string         `json:"server_key"`
 	ServerPort   int            `json:"server_port"`
@@ -34,6 +32,10 @@ type Tunnel struct {
 	Message      string         `json:"message"`
 	Interface    string         `json:"interface"`
 	PFSig        PortForwardSig `json:",omitempty"`
+}
+
+func NewTunnel(region *Region, intf string) *Tunnel {
+	return &Tunnel{Region: *region, Interface: intf}
 }
 
 var _piaCertpool *x509.CertPool = nil
@@ -108,43 +110,8 @@ func doRequest(req *http.Request, server_name string) (*http.Response, error) {
 	return resp, nil
 }
 
-func Servers(region string) (*Tunnel, error) {
-	const pia_url_servers = "https://serverlist.piaservers.net/vpninfo/servers/v4"
-	resp, err := http.Get(pia_url_servers)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	tun := Tunnel{Region: region}
-	var res struct {
-		Regions []struct {
-			Id      string              `json:"id"`
-			Servers map[string][]Server `json:"servers"`
-		} `json:"regions"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return nil, err
-	}
-
-	for _, r := range res.Regions {
-		if r.Id == region {
-			metas, has_meta := r.Servers["meta"]
-			wgs, has_wg := r.Servers["wg"]
-			if !has_meta || !has_wg {
-				return nil, fmt.Errorf("GetServers: region %s doesn't support wireguard", region)
-			}
-			tun.MetaServer = metas[0]
-			tun.WgServer = wgs[0]
-			return &tun, nil
-		}
-	}
-	return nil, fmt.Errorf("get_servers: Region %s not found", region)
-}
-
 func (tun *Tunnel) Activate() error {
-	url := fmt.Sprintf("https://%s:1337/addKey", tun.WgServer.Ip)
+	url := fmt.Sprintf("https://%s:1337/addKey", tun.Region.WgServer().Ip)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
@@ -153,7 +120,7 @@ func (tun *Tunnel) Activate() error {
 	q.Add("pt", tun.Token.Token)
 	q.Add("pubkey", tun.PublicKey)
 	req.URL.RawQuery = q.Encode()
-	resp, err := doRequest(req, tun.WgServer.Cn)
+	resp, err := doRequest(req, tun.Region.WgServer().Cn)
 	if err != nil {
 		return err
 	}

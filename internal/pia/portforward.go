@@ -24,7 +24,7 @@ func (tun *Tunnel) NewPFSig() error {
 	q := req.URL.Query()
 	q.Add("token", tun.Token.Token)
 	req.URL.RawQuery = q.Encode()
-	resp, err := doRequest(req, tun.WgServer.Cn)
+	resp, err := doRequest(req, tun.Region.WgServer().Cn)
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func (tun *Tunnel) BindPF() error {
 	q.Add("payload", tun.PFSig.Payload)
 	q.Add("signature", tun.PFSig.Signature)
 	req.URL.RawQuery = q.Encode()
-	resp, err := doRequest(req, tun.WgServer.Cn)
+	resp, err := doRequest(req, tun.Region.WgServer().Cn)
 	if err != nil {
 		return err
 	}

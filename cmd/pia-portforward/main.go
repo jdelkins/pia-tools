@@ -18,7 +18,6 @@ var (
 )
 
 func parseArgs() {
-	const path_systemd_networkd = "/etc/systemd/network"
 	flag.StringVar(&wg_if, "ifname", "pia", "name of wireguard interface, used to determine cache filename")
 	flag.StringVar(&pia_username, "username", "", "PIA username")
 	flag.StringVar(&pia_password, "password", "", "PIA password")

@@ -2,6 +2,7 @@ package pia
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
 	"sync"
@@ -38,8 +39,7 @@ func (self *Region) HasWg() bool {
 	return self.WgServer() != nil
 }
 
-func (self *Region) setPingTime(done *sync.WaitGroup) {
-	defer done.Done()
+func (self *Region) setPingTime() {
 	wg := self.WgServer()
 	if wg == nil {
 		self.PingTime = time.Duration(0)
@@ -61,6 +61,37 @@ func (self *Region) setPingTime(done *sync.WaitGroup) {
 	return
 }
 
+func RegionsWithPingTime() ([]Region, error) {
+	regions, err := Regions()
+	if err != nil {
+		return nil, err
+	}
+
+	// parallelize the pings, obviously, or we'll be here all day
+	var done sync.WaitGroup
+	for i := range regions {
+		r := &regions[i]
+		done.Add(1)
+		go func(done *sync.WaitGroup) {
+			r.setPingTime()
+			done.Done()
+		}(&done)
+	}
+	done.Wait()
+
+	// sort by increasing ping time
+	sort.Slice(regions, func(i, j int) bool {
+		if regions[i].PingTime == 0 {
+			return false
+		}
+		if regions[j].PingTime == 0 {
+			return true
+		}
+		return regions[i].PingTime < regions[j].PingTime
+	})
+	return regions, nil
+}
+
 func Regions() ([]Region, error) {
 	const pia_url_servers = "https://serverlist.piaservers.net/vpninfo/servers/v4"
 	resp, err := http.Get(pia_url_servers)
@@ -75,24 +106,18 @@ func Regions() ([]Region, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&_r); err != nil {
 		return nil, err
 	}
-	regions := _r.Regions
+	return _r.Regions, nil
+}
 
-	var done sync.WaitGroup
-	for i := range regions {
-		r := &regions[i]
-		done.Add(1)
-		go r.setPingTime(&done)
+func FindRegion(id string) (*Region, error) {
+	regions, err := Regions()
+	if err != nil {
+		return nil, err
 	}
-	done.Wait()
-
-	sort.Slice(regions, func(i, j int) bool {
-		if regions[i].PingTime == 0 {
-			return false
+	for i := range regions {
+		if regions[i].Id == id {
+			return &regions[i], nil
 		}
-		if regions[j].PingTime == 0 {
-			return true
-		}
-		return regions[i].PingTime < regions[j].PingTime
-	})
-	return regions, nil
+	}
+	return nil, fmt.Errorf("Could not find region %s", id)
 }

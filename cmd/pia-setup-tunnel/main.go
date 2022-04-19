@@ -42,8 +42,10 @@ func main() {
 		flag.Usage()
 		log.Panicf("%v", err)
 	}
+
+	// Find the "best" region if requested
 	if region == "auto" || region == "" {
-		regions, err := pia.Regions()
+		regions, err := pia.RegionsWithPingTime()
 		if err != nil {
 			log.Panicf("Could not enumerate regions: %v", err)
 		}
@@ -51,21 +53,26 @@ func main() {
 		// just need to find the first one in the list that has both port
 		// forwarding and wireguard
 		for i := range regions {
-			if regions[i].HasWg() && regions[i].PortForward {
-				region = regions[i].Id
-				fmt.Printf("Selected region %s\n", region)
+			r := &regions[i]
+			if r.HasWg() && r.PortForward {
+				region = r.Id
+				fmt.Printf("Selected region %s (%s), having ping time %d ms\n", r.Id, r.Name, r.PingTime.Milliseconds())
 				break
 			}
 		}
 	}
-	if region == "auto" || region == "" {
-		log.Panicln("Could not find a suitable region")
-	}
-	tun, err := pia.Servers(region)
+
+	// Make sure the provided region supports WG
+	reg, err := pia.FindRegion(region)
 	if err != nil {
-		log.Panicf("Could not get server list: %v", err)
+		log.Panicf("%v", err)
 	}
-	tun.Interface = wg_if
+	if !reg.HasWg() {
+		log.Panicf("Region %s (%s) does not support WireGuard at this time", reg.Id, reg.Name)
+	}
+
+	// Create a Tunnel struct and populate it with fresh WG keys and an access token
+	tun := pia.NewTunnel(reg, wg_if)
 	defer func() {
 		if err := tun.SaveCache(); err != nil {
 			log.Panicf("Could not save cache: %v", err)
@@ -79,9 +86,13 @@ func main() {
 			log.Panicf("Could not get token: %v", err)
 		}
 	}
+
+	// Register the WG keys
 	if err := tun.Activate(); err != nil {
 		log.Panicf("Could not register public key: %v", err)
 	}
+
+	// Finally, populate the templates
 	if err := fileops.CreateNetdevFile(tun, path_netdev, path_netdev_tmpl); err != nil {
 		log.Panicf("Could not create %s file: %v", path_netdev, err)
 	}
