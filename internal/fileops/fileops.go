@@ -28,12 +28,9 @@ func createFile(path string, gid int, perm fs.FileMode) (*os.File, error) {
 
 func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error {
 	// Generate .netdev
-	wgserver := func(tuni interface{}) map[string]interface{} {
+	wgserver := func(tuni interface{}) interface{} {
 		tun := tuni.(*pia.Tunnel)
-		return map[string]interface{}{
-			"cn": tun.Region.WgServer().Cn,
-			"ip": tun.Region.WgServer().Ip,
-		}
+		return interface{}(tun.Region.WgServer())
 	}
 
 	extraFuncs := template.FuncMap{
