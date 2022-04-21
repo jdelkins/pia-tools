@@ -28,7 +28,15 @@ func createFile(path string, gid int, perm fs.FileMode) (*os.File, error) {
 
 func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error {
 	// Generate .netdev
-	nd_tmpl, err := template.New(tun.Interface + ".netdev.tmpl").Funcs(sprig.TxtFuncMap()).ParseFiles(template_path)
+	wgserver := func(tuni interface{}) interface{} {
+		tun := tuni.(pia.Tunnel)
+		return interface{}(*tun.Region.WgServer())
+	}
+
+	extraFuncs := template.FuncMap{
+		"server": wgserver,
+	}
+	nd_tmpl, err := template.New(tun.Interface + ".netdev.tmpl").Funcs(sprig.TxtFuncMap()).Funcs(extraFuncs).ParseFiles(template_path)
 	if err != nil {
 		return err
 	}
@@ -48,11 +56,11 @@ func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error 
 		return err
 	}
 	defer file.Close()
-	
+
 	if err := nd_tmpl.Execute(file, tun); err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
