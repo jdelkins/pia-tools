@@ -5,6 +5,7 @@ ConditionFileNotEmpty=/var/cache/pia/%I.json
 ConditionPathExists=/etc/pia.conf
 
 [Service]
+User=pia
 EnvironmentFile=/etc/pia.conf
 Type=oneshot
 ExecStart=/usr/local/bin/pia-portforward -ifname %I -username $PIA_USERNAME -password $PIA_PASSWORD -refresh -rtorrent $RTORRENT_URL

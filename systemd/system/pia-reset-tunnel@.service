@@ -5,6 +5,7 @@ ConditionPathIsDirectory=/var/cache/pia
 ConditionPathExists=/etc/pia.conf
 
 [Service]
+User=pia
 EnvironmentFile=/etc/pia.conf
 Type=oneshot
 ExecStart=/usr/local/bin/pia-setup-tunnel -region $PIA_REGION -username $PIA_USERNAME -password $PIA_PASSWORD -ifname %I

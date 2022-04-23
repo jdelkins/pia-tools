@@ -1,10 +1,12 @@
 package fileops
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"os/user"
 	"strconv"
+	"syscall"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -17,7 +19,19 @@ func createFile(path string, gid int, perm fs.FileMode) (*os.File, error) {
 		return nil, err
 	}
 
-	err = file.Chown(0, gid)
+	// get UID of the file
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return nil, err
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		file.Close()
+		return nil, fmt.Errorf("Could not stat file %s", path)
+	}
+
+	err = file.Chown(int(stat.Uid), gid)
 	if err != nil {
 		file.Close()
 		return nil, err
