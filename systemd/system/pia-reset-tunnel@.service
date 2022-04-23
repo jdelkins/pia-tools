@@ -7,7 +7,7 @@ ConditionPathExists=/etc/pia.conf
 [Service]
 EnvironmentFile=/etc/pia.conf
 Type=oneshot
-ExecStart=/usr/bin/su pia /usr/local/bin/pia-setup-tunnel -region $PIA_REGION -username $PIA_USERNAME -password $PIA_PASSWORD -ifname %I
+ExecStart=/usr/bin/sudo -u pia /usr/local/bin/pia-setup-tunnel -region $PIA_REGION -username $PIA_USERNAME -password $PIA_PASSWORD -ifname %I
 ExecStartPost=-/usr/bin/ip link set down dev %I
 ExecStartPost=-/usr/bin/ip link del %I
 ExecStartPost=/usr/bin/networkctl reload
