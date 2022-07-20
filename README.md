@@ -4,12 +4,13 @@ A suite to assist establishing a [wireguard][] tunnel to [PIA][], a VPN service
 provider, under a [systemd-networkd][] Linux network stack using [PIA's new
 REST API](https://github.com/pia-foss/manual-connections). Also includes
 a utility for setting up, activating, and maintaining a forwarded port. To top
-it off, the port forwarding utility can also notify [rtorrent][] of the port
-using XML-RPC. [rtorrent][] can then advertise the forwarded port as it's
-torrent port, and thereby receive incoming peer requests, provided you also set
-up your firewall to also forward the port internally to the [rtorrent][] server
-(you're on your own there, but what I do is simply forward almost all ports on
-the firewall's wireguard interface to the rtorrent server).
+it off, the port forwarding utility can also notify [rtorrent][] and/or
+[transmission][] of the port using XML-RPC. [rtorrent][] can then advertise the
+forwarded port as it's torrent port, and thereby receive incoming peer
+requests, provided you also set up your firewall to also forward the port
+internally to the [rtorrent][] server (you're on your own there, but what I do
+is simply forward almost all ports on the firewall's wireguard interface to the
+rtorrent server).
 
 According to unofficial documentation, [PIA][] requires you to refresh the port
 forwarding assignment every few minutes. The `pia-portforward` utility can do
@@ -22,19 +23,21 @@ work. Patches welcome.
 
 ## About
 
-[Private Internet Access][PIA] is a solid VPN provider.[^1] In their latest
-generation infrastructure, they designed a system use for by their mobile and
-desktop apps, which allow wireguard tunnels with randomly generated, frequently
-rotated private keys. Unfortunately their Linux app, though I haven't tried it,
-doesn't feel right for my use case, wherein I run the VPN on my firewall,
-a Linux box running [systemd-networkd][], in the manner described below.
-Luckily, however, [PIA][] published their REST API, which is pretty simple to
-use; using it, we can dynamically configure our VPN with this tool suite.
+[Private Internet Access][PIA] is, IMHO, a solid VPN provider.[^1] In their
+latest generation infrastructure, they designed a system for use by their
+mobile and desktop apps, which allow wireguard tunnels with randomly generated,
+frequently rotated private keys. Unfortunately their Linux app, though
+I haven't tried it, doesn't feel right for my use case, wherein I run the VPN
+on my firewall, a Linux box running [systemd-networkd][], in the manner
+described below. Luckily, however, [PIA][] published their REST API, which is
+pretty simple to use; using it, we can dynamically configure our VPN with this
+tool suite.
 
 There are a couple of ways to use a VPN. One way is to set it up on your
-workstation or laptop, so that you tunnel through your lan and then the
-internet to the VPN service provider. For most users, this is enough, and for
-that [PIA][] has a nice desktop app that probably works fine.
+workstation, laptop, or mobile device, so that your traffic is encrypted
+through your lan and then the internet to the VPN service provider. For most
+users, this is enough, and for that [PIA][] has nice desktop and mobile apps
+that probably work fine.
 
 Another way, if you control your network infrastructure, is to set up your
 LAN's firewall to connect to the VPN service and route all (or some selection)
@@ -51,8 +54,8 @@ Wireguard keys, and forwarded ipv4 port, it requires some tooling to set up.
 
 [^2]: One downside of this approach is that network traffic is still
   unencrypted on the LAN, so if you have any reason to fear privacy gaps at the
-  physical LAN level, this approach is not recommended; stick with the official
-  client app.
+  physical LAN level despite your controlling the firewall, this approach is
+  not recommended; stick with the official client app.
 
 ## Install Tools
 
@@ -163,18 +166,26 @@ accessible through the VPN.
    will read that file and add to it as part of the next step.
 
 2. Run `pia-portforward -ifname <interface> -rtorrent
-   http://<rtorrent-ip>:<rtorrent-port>`. This will request a forwarding port
-   from [PIA][], activate it, and then inform [rtorrent][] about the port. You
-   may have to configure [rtorrent][] to accept XML-RPC queries on the `/RPC2`
-   endpoint.
+   http://<rtorrent-ip>:<rtorrent-port>` or `pia-portforward -ifname
+   <interface> -transmission <transmission-ip>`. This will request a forwarding
+   port from [PIA][], activate it, and then inform [rtorrent][] or
+   [transmission][], respectively, about the port.
+
+   - In the case of [rtorrent][], you may have to configure your instance to
+     accept XML-RPC queries on the `/RPC2` endpoint.
+
+   - In the case of [transmission][], if your instance is configured with
+     a username and password, provide those with the `-transmission-username`
+     and `-transmission-password` parameters
 
    **Note ☞**  Don't include the `/RPC2` URL component in the `-rtorrent`
    parameter, as this is added automatically.
 
-   If you don't have an [rtorrent][] server running (or just don't want to use
-   the forwarded port for that), then just leave off the `-rtorrent` option.
-   You're on your own to parse `/var/cache/pia/<interface>.json` to obtain the
-   assigned port and do something with it.
+   If you don't have a bittorrent server running (or just don't want to use the
+   forwarded port for that), then just leave off the `-rtorrent` and
+   `-transmission` options. You're on your own to parse
+   `/var/cache/pia/<interface>.json` to obtain the assigned port and do
+   something with it.
 
 3. If you are running the VPN endpoint on a firewall, make sure your firewall
    rules are forwarding or redirecting the port where you want it. (You can
@@ -200,5 +211,6 @@ accessible through the VPN.
 [wireguard]: https://www.wireguard.com/
 [PIA]: https://www.privateinternetaccess.com/
 [rtorrent]: https://github.com/rakshasa/rtorrent
+[transmission]: https://transmissionbt.com/
 [tun]: https://github.com/jdelkins/pia-tools/blob/09ebfbe23d457cca3bf28a0a9a27c028311bc752/internal/pia/pia.go#L20
 [sprig]: http://masterminds.github.io/sprig/
