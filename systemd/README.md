@@ -31,7 +31,7 @@ Assumes:
    `PIA_REGION` you can use the included `pia-listregions` utility to choose
    a region id with a low ping time and the desired feature set, or, simply
    specify the special region "auto" to select the region with the lowest ping
-   time.
+   time (and also having wireguard and port forwarding).
 
    To use the `pia-listregions` tool, install then run it like this:
 
@@ -58,8 +58,8 @@ Assumes:
 4. If you wish, adjust the `.timer` files to change the timing of when the
    scripts are run.
 
-5. If you don't wish to use the rtorrent notification feature, edit the
-   `.service` files and remove the `-rtorrent $RTORRENT_URL` parts.
+5. If you don't wish to use the rtorrent or transmission notification feature,
+   comment out the `RTORRENT=` or `TRANSMISSION=` lines in `/etc/pia.conf`
 
 6. Enable the timers. Use whatever interface name you want in place of `wgpia0`.
 
