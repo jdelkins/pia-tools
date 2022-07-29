@@ -14,4 +14,4 @@ ExecStartPost=/usr/bin/networkctl reload
 ExecStartPost=/usr/bin/networkctl reconfigure %I
 ExecStartPost=/usr/bin/networkctl up %I
 ExecStartPost=/usr/bin/sleep 10
-ExecStartPost=-/usr/local/bin/pia-portforward -ifname %I -rtorrent $RTORRENT_URL
+ExecStartPost=-/usr/local/bin/pia-portforward -ifname %I $RTORRENT $TRANSMISSION
