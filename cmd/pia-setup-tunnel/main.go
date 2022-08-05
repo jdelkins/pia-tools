@@ -1,12 +1,13 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/jdelkins/pia-tools/internal/fileops"
 	"github.com/jdelkins/pia-tools/internal/pia"
+	flag "github.com/spf13/pflag"
 )
 
 var (
@@ -20,29 +21,25 @@ var (
 	wg_if             string
 )
 
-func parseArgs() error {
+func init() {
 	const path_sn = "/etc/systemd/network"
-	flag.StringVar(&wg_if, "ifname", "pia", "name of interface \"IF\", where the systemd-networkd files will be called /etc/systemd/network/IF.{netdev,network}")
-	flag.StringVar(&pia_username, "username", "", "PIA username")
-	flag.StringVar(&pia_password, "password", "", "PIA password")
-	flag.StringVar(&reg_id, "region", "auto", "PIA region id")
+	flag.StringVarP(&wg_if, "ifname", "i", "pia", "name of interface \"IF\", where the systemd-networkd files will be called /etc/systemd/network/IF.{netdev,network}")
+	flag.StringVarP(&pia_username, "username", "u", "", "PIA username (REQUIRED)")
+	flag.StringVarP(&pia_password, "password", "p", "", "PIA password (REQUIRED)")
+	flag.StringVarP(&reg_id, "region", "r", "auto", "PIA region id")
 	flag.Parse()
 	if pia_username == "" || pia_password == "" {
-		return fmt.Errorf("Username and/or password were not provided")
+		fmt.Fprintf(os.Stderr, "%s: --username and --password are required arguments. Aborting.\n\n", os.Args[0])
+		flag.Usage()
+		os.Exit(1)
 	}
 	path_netdev = fmt.Sprintf("%s/%s.netdev", path_sn, wg_if)
 	path_network = fmt.Sprintf("%s/%s.network", path_sn, wg_if)
 	path_netdev_tmpl = fmt.Sprintf("%s/%s.netdev.tmpl", path_sn, wg_if)
 	path_network_tmpl = fmt.Sprintf("%s/%s.network.tmpl", path_sn, wg_if)
-	return nil
 }
 
 func main() {
-	if err := parseArgs(); err != nil {
-		flag.Usage()
-		log.Panicf("%v", err)
-	}
-
 	// Find the "best" reg_id if requested
 	var reg *pia.Region
 	if reg_id == "auto" || reg_id == "" {

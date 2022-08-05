@@ -7,6 +7,7 @@ require (
 	github.com/go-ping/ping v0.0.0-20211130115550-779d1e919534
 	github.com/hekmon/transmissionrpc/v2 v2.0.1
 	github.com/kolo/xmlrpc v0.0.0-20201022064351-38db28db192b
+	github.com/spf13/pflag v1.0.5
 )
 
 require (

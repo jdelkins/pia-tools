@@ -1,13 +1,13 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 
 	"github.com/jdelkins/pia-tools/internal/pia"
 	"github.com/jdelkins/pia-tools/internal/rtorrent"
 	"github.com/jdelkins/pia-tools/internal/transmission"
+	flag "github.com/spf13/pflag"
 )
 
 var (
@@ -21,20 +21,19 @@ var (
 	transmissionPassword string
 )
 
-func parseArgs() {
-	flag.StringVar(&wg_if, "ifname", "pia", "name of wireguard interface, used to determine cache filename")
-	flag.StringVar(&piaUsername, "username", "", "PIA username")
-	flag.StringVar(&piaPassword, "password", "", "PIA password")
-	flag.BoolVar(&refreshOnly, "refresh", false, "Refresh cached port assignment, rather than getting a new assignment")
-	flag.StringVar(&rtorrentUrl, "rtorrent", "", "Notify rtorrent of the assigned port via XML-RPC at this URL")
-	flag.StringVar(&transmissionAddress, "transmission", "", "Notify transmission bittorrent server at this address of the assigned port")
+func init() {
+	flag.StringVarP(&wg_if, "ifname", "i", "pia", "name of wireguard interface, used to determine cache filename")
+	flag.StringVarP(&piaUsername, "username", "u", "", "PIA username")
+	flag.StringVarP(&piaPassword, "password", "p", "", "PIA password")
+	flag.BoolVarP(&refreshOnly, "refresh", "r", false, "Refresh cached port assignment, rather than getting a new assignment")
+	flag.StringVar(&rtorrentUrl, "rtorrent", "", "Notify rtorrent at this XML-RPC URL of the assigned port")
+	flag.StringVar(&transmissionAddress, "transmission", "", "Notify transmission bittorrent server at this IP address of the asisgned port")
 	flag.StringVar(&transmissionUsername, "transmission-username", "", "Transmission server username")
 	flag.StringVar(&transmissionUsername, "transmission-password", "", "Transmission server password")
 	flag.Parse()
 }
 
 func main() {
-	parseArgs()
 	tun, err := pia.ReadCache(wg_if)
 	defer func() {
 		if err := tun.SaveCache(); err != nil {
