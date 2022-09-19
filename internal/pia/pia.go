@@ -103,11 +103,7 @@ func doRequest(req *http.Request, server_name string) (*http.Response, error) {
 			},
 		},
 	}
-	resp, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return c.Do(req)
 }
 
 func (tun *Tunnel) Activate() error {
