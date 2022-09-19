@@ -5,12 +5,13 @@ provider, under a [systemd-networkd][] Linux network stack using [PIA's new
 REST API](https://github.com/pia-foss/manual-connections). Also includes
 a utility for setting up, activating, and maintaining a forwarded port. To top
 it off, the port forwarding utility can also notify [rtorrent][] and/or
-[transmission][] of the port using XML-RPC. [rtorrent][] can then advertise the
-forwarded port as it's torrent port, and thereby receive incoming peer
-requests, provided you also set up your firewall to also forward the port
-internally to the [rtorrent][] server (you're on your own there, but what I do
-is simply forward almost all ports on the firewall's wireguard interface to the
-rtorrent server).
+[transmission][] of the port using XML-RPC. The torrent client(s) can then
+advertise the forwarded port as it's torrent port, and thereby receive incoming
+peer requests, provided you also set up your firewall to forward the port
+internally (you're on your own there, but what I do is simply forward almost
+all ports on the firewall's wireguard interface to the torrent server. It
+would be almost as easy to update a firewall rule, if this router is also the
+firewall).
 
 According to unofficial documentation, [PIA][] requires you to refresh the port
 forwarding assignment every few minutes. The `pia-portforward` utility can do
@@ -19,7 +20,7 @@ this with the `-refresh` flag.
 ## Caveat emptor
 
 This code is only lightly tested with my own private set up. It may or may not
-work. Patches welcome.
+work. Patches welcome, especially if they would cover any more general use cases.
 
 ## About
 
@@ -30,8 +31,8 @@ frequently rotated private keys. Unfortunately their Linux app, though
 I haven't tried it, doesn't feel right for my use case, wherein I run the VPN
 on my firewall, a Linux box running [systemd-networkd][], in the manner
 described below. Luckily, however, [PIA][] published their REST API, which is
-pretty simple to use; using it, we can dynamically configure our VPN with this
-tool suite.
+pretty simple to use; powered by that, we can dynamically configure our
+systemd-networkd borne VPN tunnel and routing rules with this tool suite.
 
 There are a couple of ways to use a VPN. One way is to set it up on your
 workstation, laptop, or mobile device, so that your traffic is encrypted
@@ -55,7 +56,8 @@ Wireguard keys, and forwarded ipv4 port, it requires some tooling to set up.
 [^2]: One downside of this approach is that network traffic is still
   unencrypted on the LAN, so if you have any reason to fear privacy gaps at the
   physical LAN level despite your controlling the firewall, this approach is
-  not recommended; stick with the official client app.
+  not recommended; stick with the official client app for true end-to-end
+  encryption.
 
 ## Install Tools
 
@@ -134,8 +136,7 @@ Wireguard keys, and forwarded ipv4 port, it requires some tooling to set up.
 
 3. Run `pia-setup-tunnel -username <user> -password <pass> -ifname <interface>`
    as root to create the `.network` and `.netdev` files corresponding to the
-   templates created above. The only messages you see will be errors; if
-   everything works, you will see nothing.
+   templates created above.
 
 4. Inspect the generated files. If everything looks okay, run `systemctl
    restart systemd-networkd` as root to reload your network stack and activate
@@ -154,9 +155,10 @@ If you also want incoming traffic on a single TCP port and a single UDP port
 (both with the same port number) to be forwarded to your VPN endpoint, then
 follow the procedure below.
 
-**Note ☞**  The following steps are *not necessary* if you are simply setting up
-a tunnel on a client machine. This is for running a server of some kind
-accessible through the VPN.
+**Note ☞**  The following steps are *not necessary* if you are simply setting
+up a tunnel on a gateway. This tool is to enable running a server behind (or
+on) the gateway that accepts incoming connections to be accessible through the
+VPN.
 
 1. Make sure your wireguard tunnel to PIA is up and running per the above
    procedure. The following step presumes that you have a working route to
@@ -165,27 +167,28 @@ accessible through the VPN.
    saved some information in the file `/var/cache/pia/<interface>.json`. We
    will read that file and add to it as part of the next step.
 
-2. Run `pia-portforward -ifname <interface> -rtorrent
+2. If you are running [rtorrent][] or [transmission][] as the server behind the
+   gateway, run, respectively, `pia-portforward -ifname <interface> -rtorrent
    http://<rtorrent-ip>:<rtorrent-port>` or `pia-portforward -ifname
    <interface> -transmission <transmission-ip>`. This will request a forwarding
    port from [PIA][], activate it, and then inform [rtorrent][] or
    [transmission][], respectively, about the port.
 
    - In the case of [rtorrent][], you may have to configure your instance to
-     accept XML-RPC queries on the `/RPC2` endpoint.
+     accept XML-RPC queries on the `/RPC2` endpoint. **Note ☞**  Don't include
+     the `/RPC2` URL component in the `-rtorrent` parameter, as this is added
+     automatically.
 
    - In the case of [transmission][], if your instance is configured with
      a username and password, provide those with the `-transmission-username`
      and `-transmission-password` parameters
 
-   **Note ☞**  Don't include the `/RPC2` URL component in the `-rtorrent`
-   parameter, as this is added automatically.
 
    If you don't have a bittorrent server running (or just don't want to use the
    forwarded port for that), then just leave off the `-rtorrent` and
    `-transmission` options. You're on your own to parse
    `/var/cache/pia/<interface>.json` to obtain the assigned port and do
-   something with it.
+   something with it, such as setting up a DNAT firewall rule.
 
 3. If you are running the VPN endpoint on a firewall, make sure your firewall
    rules are forwarding or redirecting the port where you want it. (You can
@@ -194,16 +197,15 @@ accessible through the VPN.
    whatever) on the firewall host, and configure the server to listen on PIA's
    assigned port.
 
-4. Every 15 minutes or so (presumably using `cron` or similar), run
-   `pia-portforward -ifname <interface> -refresh` in order to refresh the port
-   forwarding assignment. If not, PIA may reclaim the port for another
-   customer.
+4. Every 15 minutes or so (using `cron` or similar), run `pia-portforward
+   -ifname <interface> -refresh` in order to refresh the port forwarding
+   assignment. If not, PIA may reclaim the port for another customer.
 
 ## TODO
 
-- [ ] Make `systemd.service` and `systemd.timer`files for various phases of
+- [x] Make `systemd.service` and `systemd.timer`files for various phases of
   the tunnel lifecycle
-- [ ] Test under more scenarios
+- [x] Test under more scenarios
 - [ ] Implement PIA's dynamic IP (DIP) feature
 
 
