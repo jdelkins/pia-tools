@@ -134,7 +134,7 @@ Wireguard keys, and forwarded ipv4 port, it requires some tooling to set up.
    wireguard private keys. These files do not store your [PIA][] username or
    password, but should still be treated as private.
 
-3. Run `pia-setup-tunnel -username <user> -password <pass> -ifname <interface>`
+3. Run `pia-setup-tunnel --username <user> --password <pass> --ifname <interface>`
    as root to create the `.network` and `.netdev` files corresponding to the
    templates created above.
 
