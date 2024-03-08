@@ -188,16 +188,32 @@ VPN.
    forwarded port for that), then just leave off the `-rtorrent` and
    `-transmission` options. You're on your own to parse
    `/var/cache/pia/<interface>.json` to obtain the assigned port and do
-   something with it, such as setting up a DNAT firewall rule.
+   something with it, such as setting up a DNAT firewall rule. You could, for
+   example:
 
-3. If you are running the VPN endpoint on a firewall, make sure your firewall
+    ```sh
+     nft add chain inet filter pia_portfoward '{type nat hook prerouting priority -100; policy accept}'
+     nft flush chain inet filter pia_portforward
+     nft add rule inet filter pia_portforward tcp dport $(jq .PFSig.port /var/cache/pia/pia.json) dnat ip to 192.168.0.80:80
+     ```
+
+   ...which would create a nftables rule to forward incoming traffic on your
+   assigned port (retrieved from the cache file by the shell out to `jq`)
+   to an internal webserver running on port 80. This assumes your VPN wireguard
+   interface is named `pia` and your web server is running on `192.168.0.80`.
+   This sets up the mechanism for forwarding connections, but to accually permit
+   such connections, you would also then have to also add a static rule to accept
+   them, typically somewhere in the `forward` chain in nftables. Again, you're
+   on your own: the possibilies are vast once you can get the forwarded port number.
+
+4. If you are running the VPN endpoint on a firewall, make sure your firewall
    rules are forwarding or redirecting the port where you want it. (You can
    inspect or parse `/var/cache/pia/<interface>.json` to determine the port
    number if you need it). Alternatively, you can just run [rtorrent][] (or
    whatever) on the firewall host, and configure the server to listen on PIA's
    assigned port.
 
-4. Every 15 minutes or so (using `cron` or similar), run `pia-portforward
+5. Every 15 minutes or so (using `cron` or similar), run `pia-portforward
    -ifname <interface> -refresh` in order to refresh the port forwarding
    assignment. If not, PIA may reclaim the port for another customer.
 
