@@ -76,14 +76,15 @@ files. Heck, the official wireguard client is written in go if I understand,
 so you could probably, almost as easily, directly set up the tunnels with
 library calls. I'm not likely to write that code though since I am happy with
 `systemd-networkd` and I like having as much of my networking configuration
-handled by it as possible. Check out the [Alternatives](#alternatives) though.
+handled by it as possible. Check out the [Alternatives](#alternatives) though
+if you have a different networking preference.
 
 ## Alternatives
 
-| Tool | Description |
-| - | - |
-| [piawgcli](https://gitlab.com/ddb_db/piawgcli) | Similar approach, but generates a wireguard-cli configuration file instead of systemd-networkd |
-| [Official](https://github.com/pia-foss/manual-connections) | Bash scripts that accomplish a similar goal using plain-jane networking commands, like `ip` `wg-quick` and so on. Also has a nice list of links to other alternatives. |
+| Tool                                                       | Description                                                                                                                                                             |
+|------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [piawgcli](https://gitlab.com/ddb_db/piawgcli)             | Similar approach, but generates a wireguard-cli configuration file instead of systemd-networkd                                                                          |
+| [Official](https://github.com/pia-foss/manual-connections) | Bash scripts that accomplish a similar goal using plain-jane networking commands, like `ip`, `wg-quick` and so on. Also has a nice list of links to other alternatives. |
 
 ## Install Tools
 
