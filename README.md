@@ -167,29 +167,41 @@ VPN.
    saved some information in the file `/var/cache/pia/<interface>.json`. We
    will read that file and add to it as part of the next step.
 
-2. If you are running [rtorrent][] or [transmission][] as the server behind the
-   gateway, run, respectively, `pia-portforward -ifname <interface> -rtorrent
-   http://<rtorrent-ip>:<rtorrent-port>` or `pia-portforward -ifname
-   <interface> -transmission <transmission-ip>`. This will request a forwarding
+2. For bittorrent users: the thing with bittorrent, like ftp, is layer 3 info
+   (the port number by which your server is reachable) is communicated in layer 7
+   (announce messages). This layer transgression requires communicating some midstream
+   layer 3 info to your bittorrent server. Other types of servers (http web servers,
+   for example) don't need to know the port number, and such traffic can be handled
+   by straightforwardly dnatting traffic delivered to PIA's forwarded port to a
+   static server port, locally on the firewall or elsewhere on the LAN side.
+   The `pia-portforward` tool can help communicating this port number to either
+   [rtorrent][] or [transmission][]. (I haven't gotten arround to implementing
+   a similar feature for [qbittorrent][], the most popular bittorrent server on
+   Linux, because I personally don't use it and no one has asked, but I believe
+   the capability is there and it should be be simple to add.)
+
+   If you are running [rtorrent][] or [transmission][] as the server behind the
+   gateway, run, respectively, `pia-portforward --ifname <interface> --rtorrent
+   http://<rtorrent-ip>:<rtorrent-port>` or `pia-portforward --ifname
+   <interface> --transmission <transmission-ip>`. This will request a forwarding
    port from [PIA][], activate it, and then inform [rtorrent][] or
    [transmission][], respectively, about the port.
 
    - In the case of [rtorrent][], you may have to configure your instance to
      accept XML-RPC queries on the `/RPC2` endpoint. **Note ☞**  Don't include
-     the `/RPC2` URL component in the `-rtorrent` parameter, as this is added
+     the `/RPC2` URL component in the `--rtorrent` parameter, as this is added
      automatically.
 
    - In the case of [transmission][], if your instance is configured with
-     a username and password, provide those with the `-transmission-username`
-     and `-transmission-password` parameters
+     a username and password, provide those with the `--transmission-username`
+     and `--transmission-password` parameters
 
-
-   If you don't have a bittorrent server running (or just don't want to use the
-   forwarded port for that), then just leave off the `-rtorrent` and
-   `-transmission` options. You're on your own to parse
+4. If you don't have a bittorrent server running (or just don't want to use the
+   forwarded port for that), then just leave off the `--rtorrent` and
+   `--transmission` options. You're on your own to parse
    `/var/cache/pia/<interface>.json` to obtain the assigned port and do
-   something with it, such as setting up a DNAT firewall rule. You could, for
-   example:
+   something with it, such as setting up a DNAT firewall rule. You could,
+   for example:
 
     ```sh
      nft add chain inet filter pia_portfoward '{type nat hook prerouting priority -100; policy accept}'
@@ -206,15 +218,8 @@ VPN.
    them, typically somewhere in the `forward` chain in nftables. Again, you're
    on your own: the possibilies are vast once you can get the forwarded port number.
 
-4. If you are running the VPN endpoint on a firewall, make sure your firewall
-   rules are forwarding or redirecting the port where you want it. (You can
-   inspect or parse `/var/cache/pia/<interface>.json` to determine the port
-   number if you need it). Alternatively, you can just run [rtorrent][] (or
-   whatever) on the firewall host, and configure the server to listen on PIA's
-   assigned port.
-
-5. Every 15 minutes or so (using `cron` or similar), run `pia-portforward
-   -ifname <interface> -refresh` in order to refresh the port forwarding
+7. Every 15 minutes or so (using `cron` or similar), run `pia-portforward
+   --ifname <interface> --refresh` in order to refresh the port forwarding
    assignment. If not, PIA may reclaim the port for another customer.
 
 ## TODO
@@ -230,5 +235,6 @@ VPN.
 [PIA]: https://www.privateinternetaccess.com/
 [rtorrent]: https://github.com/rakshasa/rtorrent
 [transmission]: https://transmissionbt.com/
+[qbittorrent]: https://www.qbittorrent.org/
 [tun]: https://github.com/jdelkins/pia-tools/blob/09ebfbe23d457cca3bf28a0a9a27c028311bc752/internal/pia/pia.go#L20
 [sprig]: http://masterminds.github.io/sprig/
