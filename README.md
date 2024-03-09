@@ -2,25 +2,27 @@
 
 A suite to assist establishing a [wireguard][] tunnel to [PIA][], a VPN service
 provider, under a [systemd-networkd][] Linux network stack using [PIA's new
-REST API](https://github.com/pia-foss/manual-connections). Also includes
-a utility for setting up, activating, and maintaining a forwarded port. To top
-it off, the port forwarding utility can also notify [rtorrent][] and/or
-[transmission][] of the port using XML-RPC. The torrent client(s) can then
-advertise the forwarded port as it's torrent port, and thereby receive incoming
-peer requests, provided you also set up your firewall to forward the port
-internally (you're on your own there, but what I do is simply forward almost
-all ports on the firewall's wireguard interface to the torrent server. It
-would be almost as easy to update a firewall rule, if this router is also the
-firewall).
+REST API](https://github.com/pia-foss/manual-connections).
 
-According to unofficial documentation, [PIA][] requires you to refresh the port
+Also includes `pia-portforward`, a utility for setting up, activating, and
+maintaining a forwarded port. This utility can also notify [rtorrent][] and/or
+[transmission][] of the port number using their disinct RPC interfaces,
+which will allow them to receive incoming peer requests.
+
+According to their documentation, [PIA][] requires you to refresh the port
 forwarding assignment every few minutes. The `pia-portforward` utility can do
-this with the `-refresh` flag.
+this with the `--refresh` flag.
+
+One final utility, `pia-listregions`, will show you, on your terminal, a
+ranked (by ping time) list of PIA servers, with some possibly-salient info
+about them, with the goal of helping you choose the 'best' region to connect to
+if you are otherwise indifferent about their geography.
 
 ## Caveat emptor
 
 This code is only lightly tested with my own private set up. It may or may not
-work. Patches welcome, especially if they would cover any more general use cases.
+work for you, and if it does, some assembly will be required by you. PRs are
+welcome, especially if they would cover any more general use cases.
 
 ## About
 
@@ -36,28 +38,52 @@ systemd-networkd borne VPN tunnel and routing rules with this tool suite.
 
 There are a couple of ways to use a VPN. One way is to set it up on your
 workstation, laptop, or mobile device, so that your traffic is encrypted
-through your lan and then the internet to the VPN service provider. For most
-users, this is enough, and for that [PIA][] has nice desktop and mobile apps
-that probably work fine.
+on your device, through your lan and then the internet to the VPN service provider.
+This is "end to edge" encryption, and is the best protection a VPN can provide.
+For most users, this is easy and affords plenty of protection, and for that
+[PIA][] has nice desktop and mobile apps that are simple to use, but do require
+installing them and setting them up. PIA are putting out apps for more and more
+devices, but, unfortunately, they can't keep up with all the IoT devices, smart
+home hubs, smart TV's, etc. As a result, we have to live with some unencrypted
+traffic, and this segment is growing very fast in terms of number of devices
+and the number of security issues arising from them.
 
-Another way, if you control your network infrastructure, is to set up your
-LAN's firewall to connect to the VPN service and route all (or some selection)
-of the outgoing LAN traffic through the VPN. This way, any devices on the LAN
-can benefit from the VPN without configuring those devices at all.[^2]
+Another way to use a VPN, available to you only if you control your network
+infrastructure, is to set up your LAN's firewall to connect to the VPN service
+and route all (or some selection) of the outgoing LAN traffic through the VPN.
+This way, any devices on the LAN can benefit from the VPN without configuring
+those devices at all. Note that this is "edge to edge" encryption, which is
+a bit weaker since there is part of the path, the first part on your LAN, where
+traffic is unencrypted. I'm okay with this, because I have physical control of
+all apparatus from "end to edge". If you use any one else's wifi access point, or
+connect your access point to someone else's switch, this would not be the case for
+you. Stick with the VPN app. This project is for people who, like me, are
+okay with this depth-for-breadth trade off, and who also use `systemd-networkd`
+on their firewall.[^2]
 
 [PIA][] also has a dynamic port forwarding feature that allows you to run
-a server on or behind your VPN endpoint.
+a server on or behind your VPN endpoint. This suite can help you with that.
 
 Because of the dynamic nature of your enpoint public and virtual IP addresses,
 Wireguard keys, and forwarded ipv4 port, it requires some tooling to set up.
+Read on for how.
 
 [^1]: I have no affiliation with [PIA][] other than as a customer.
 
-[^2]: One downside of this approach is that network traffic is still
-  unencrypted on the LAN, so if you have any reason to fear privacy gaps at the
-  physical LAN level despite your controlling the firewall, this approach is
-  not recommended; stick with the official client app for true end-to-end
-  encryption.
+[^2]: I suspect it would be trivial to adapt this tool suite to another 
+wireguard-affine network stack, especially if it is configurable with text
+files. Heck, the official wireguard client is written in go if I understand,
+so you could probably, almost as easily, directly set up the tunnels with
+library calls. I'm not likely to write that code though since I am happy with
+`systemd-networkd` and I like having as much of my networking configuration
+handled by it as possible. Check out the [Alternatives](#alternatives) though.
+
+## Alternatives
+
+| Tool | Description |
+| - | - |
+| [piawgcli](https://gitlab.com/ddb_db/piawgcli) | Similar approach, but generates a wireguard-cli configuration file instead of systemd-networkd |
+| [Official](https://github.com/pia-foss/manual-connections) | Bash scripts that accomplish a similar goal using plain-jane networking commands, like `ip` `wg-quick` and so on. Also has a nice list of links to other alternatives. |
 
 ## Install Tools
 
@@ -67,8 +93,8 @@ Wireguard keys, and forwarded ipv4 port, it requires some tooling to set up.
 
 ## Configure Tunnel Interface
 
-1. Set up `<interface>.netdev.tmpl` and `<interface>.network.tmpl` template
-   files in `/etc/systemd/network/`. These templates use the Go package
+1. Set up `/etc/systemd/network/<interface>.netdev.tmpl` and `/etc/systemd/network/<interface>.network.tmpl` template
+   files. These templates use the Go package
    [`text/template`](https://pkg.go.dev/text/template) to replace tokens with
    data received from [PIA][] when requesting the tunnel to be set up. For
    example:
@@ -167,18 +193,19 @@ VPN.
    saved some information in the file `/var/cache/pia/<interface>.json`. We
    will read that file and add to it as part of the next step.
 
-2. For bittorrent users: the thing with bittorrent, like ftp, is layer 3 info
-   (the port number by which your server is reachable) is communicated in layer 7
-   (announce messages). This layer transgression requires communicating some midstream
-   layer 3 info to your bittorrent server. Other types of servers (http web servers,
-   for example) don't need to know the port number, and such traffic can be handled
-   by straightforwardly dnatting traffic delivered to PIA's forwarded port to a
-   static server port, locally on the firewall or elsewhere on the LAN side.
-   The `pia-portforward` tool can help communicating this port number to either
-   [rtorrent][] or [transmission][]. (I haven't gotten arround to implementing
-   a similar feature for [qbittorrent][], the most popular bittorrent server on
-   Linux, because I personally don't use it and no one has asked, but I believe
-   the capability is there and it should be be simple to add.)
+2. For bittorrent users: the thing with bittorrent, like ftp, is that some layer 3 info
+   (the port number by which your server is reachable) is communicated in the layer 7
+   protocol (announce messages). This layer transgression requires communicating some
+   layer 3 info to your bittorrent server using some facility provided by the server.
+   Most popular bittorrent servers that I've looked into have an RPC interface, which
+   may need to be configured/enabled (see below).
+   
+   The `pia-portforward` tool can help communicating this port number to two
+   popular bittorrent apps, namely [rtorrent][] and [transmission][]. (I haven't gotten
+   arround to implementing a similar feature for [qbittorrent][], the single most
+   popular bittorrent server on seedboxes, because I personally don't use it and
+   no one has asked, but I believe the RPC capability is there and it should be be
+   simple to add.)
 
    If you are running [rtorrent][] or [transmission][] as the server behind the
    gateway, run, respectively, `pia-portforward --ifname <interface> --rtorrent
@@ -196,12 +223,17 @@ VPN.
      a username and password, provide those with the `--transmission-username`
      and `--transmission-password` parameters
 
-4. If you don't have a bittorrent server running (or just don't want to use the
+3. If you don't have a bittorrent server running (or just don't want to use the
    forwarded port for that), then just leave off the `--rtorrent` and
    `--transmission` options. You're on your own to parse
    `/var/cache/pia/<interface>.json` to obtain the assigned port and do
-   something with it, such as setting up a DNAT firewall rule. You could,
-   for example:
+   something with it, such as setting up a DNAT firewall rule. Most protocols
+   (http, for example) don't require the server to know the port number. (The
+   server process has to listen to a configured port, but, with nat firewalls, this
+   doesn't have to be the port that the client connects to). Such traffic can be handled
+   cleanly on the firewall by dnatting traffic delivered to PIA's forwarded port to a
+   static server port, locally on the firewall or elsewhere on the LAN side.
+   You could, for example:
 
     ```sh
      nft add chain inet filter pia_portfoward '{type nat hook prerouting priority -100; policy accept}'
@@ -210,24 +242,26 @@ VPN.
      ```
 
    ...which would create a nftables rule to forward incoming traffic on your
-   assigned port (retrieved from the cache file by the shell out to `jq`)
-   to an internal webserver running on port 80. This assumes your VPN wireguard
-   interface is named `pia` and your web server is running on `192.168.0.80`.
-   This sets up the mechanism for forwarding connections, but to accually permit
-   such connections, you would also then have to also add a static rule to accept
-   them, typically somewhere in the `forward` chain in nftables. Again, you're
-   on your own: the possibilies are vast once you can get the forwarded port number.
+   assigned port (retrieved from the cache file by the `$(jq .PFSig.port /var/cache/pia/pia.json)` part)
+   to an internal webserver running on `192.168.0.80` at port 80. This example assumes your VPN wireguard
+   interface is named `pia`.
+   
+   **Note ☞** The example above sets up the mechanism for forwarding connections.
+   Assuming you don't run a default-accept firewall (hopefully you don't), then
+   to accually permit such connections, you would also have to also add a rule to accept
+   them, typically somewhere in the `forward` chain in nftables. This is not
+   a lesson in firewall design, so again, you're on your own: the possibilies
+   are numerous once you can get the forwarded port number.
 
-7. Every 15 minutes or so (using `cron` or similar), run `pia-portforward
+4. Every 15 minutes or so (using systemd timers or similar), run `pia-portforward
    --ifname <interface> --refresh` in order to refresh the port forwarding
-   assignment. If not, PIA may reclaim the port for another customer.
-
-## TODO
-
-- [x] Make `systemd.service` and `systemd.timer`files for various phases of
-  the tunnel lifecycle
-- [x] Test under more scenarios
-- [ ] Implement PIA's dynamic IP (DIP) feature
+   assignment using your cached authentication token. If you don't do this,
+   PIA will eventually reclaim the port for another customer, and traffic
+   meant for you could be delivered somewhere else! You don't want that.
+   My testing suggests that PIA is pretty conservative in this area, so
+   I think most reasonable failure cases (e.g. your ISP goes down for a
+   few hours, so you can't refresh) should be fine, but you definitely want
+   to keep refreshing the assignment as long as you're intending to use it.
 
 
 [systemd-networkd]: https://www.freedesktop.org/software/systemd/man/systemd.network.html
