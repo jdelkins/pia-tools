@@ -264,6 +264,13 @@ VPN.
    few hours, so you can't refresh) should be fine, but you definitely want
    to keep refreshing the assignment as long as you're intending to use it.
 
+## Troubleshooting
+
+The `pia-listregions` tool attempts to send an "unprivileged" ping via UDP. If this is not permitted by default on your system,
+run the binary as root or else it must be enabled with a sysctl command like the following:
+
+    sudo sysctl -w net.ipv4.ping_group_range="0 2147483647"
+
 
 [systemd-networkd]: https://www.freedesktop.org/software/systemd/man/systemd.network.html
 [wireguard]: https://www.wireguard.com/
