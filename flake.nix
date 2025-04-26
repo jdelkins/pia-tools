@@ -22,6 +22,10 @@
 
     module = with lib; with options; { config, pkgs, utils, ...}: let
       cfg = config.pia-tools;
+      whitelist-sh = pkgs.writeShellScript "pia-whitelist.sh" ''
+        ip=$(${pkgs.jq}/bin/jq -r .server_ip </var/cache/pia/${cfg.ifname}.json)
+        ${pkgs.nftables}/bin/nft add element ${cfg.whitelistSet} "{$ip}" && echo "Whitelisted $ip"
+      '';
     in {
       options.pia-tools = {
         enable = mkEnableOption "pia-tools";
@@ -30,31 +34,39 @@
           type = types.str;
           default = "pia";
         };
+
         group = mkOption {
           description = "Group to run the tool as.";
           type = types.str;
           default = "pia";
         };
+
         ifname = mkOption {
           description = "Name of PIA WireGuard network interface";
           type = types.str;
           default = "wg_pia";
         };
+
         region = mkOption {
           description = "Region to connect to, or auto by default.";
           type = types.str;
           default = "auto";
         };
+
         rTorrentParams = mkOption {
           description = "Additional parameters to pia-setup-tunnel to connect to rTorrent";
           type = types.str;
           default = "";
+          example = "--rtorrent https://rtorrent.local";
         };
+
         transmissionParams = mkOption {
           description = "Additional parameters to pia-setup-tunnel to connect to Transmission bittorrent server";
           type = types.str;
+          example = "--transmission 192.168.1.20 --transmission-username $TRANSMISSION_USERNAME --transmission-password $TRANSMISSION_PASSWORD";
           default = "";
         };
+
         envFile = mkOption {
           description = ''
             Required. Path to file setting environment variables to be used
@@ -67,12 +79,13 @@
           '';
           type = types.path;
         };
-        serviceName = mkOption {
-          description = "Name of systemd service for pia-tools tunnel refresh";
+
+        resetServiceName = mkOption {
+          description = "Name of systemd service for pia-tools tunnel reset";
           type = types.str;
-          default = "pia-refresh-${cfg.ifname}";
+          default = "pia-reset-${cfg.ifname}";
         };
-        timerConfig = mkOption {
+        resetTimerConfig = mkOption {
           description = "Timer defining frequency of resetting the tunnel. Set to null to disable.";
           type = with types; nullOr (attrsOf utils.systemdUtils.unitOptions.unitOption);
           example = "null";
@@ -80,6 +93,46 @@
             OnCalendar = "Wed *-*-* 03:00:00";
             RandomizedDelaySec = "72h";
           };
+        };
+
+        refreshServiceName = mkOption {
+          description = "Name of systemd service for pia-tools tunnel port forwarding refresh";
+          type = types.str;
+          default = "pia-pf-refresh-${cfg.ifname}";
+        };
+        refreshTimerConfig = mkOption {
+          description = "Timer defining frequency of refreshing the tunnel's port forwarding assignment. Set to null to disable.";
+          type = with types; nullOr (attrsOf utils.systemdUtils.unitOptions.unitOption);
+          example = "null";
+          default = {
+            OnCalendar = "*-*-* *:00/15:00";
+          };
+        };
+
+        whitelistSet = mkOption {
+          description = "nftables set to which to add the configured server's ip after resetting";
+          type = with types; nullOr str;
+          example = "inet filter whitelist_4";
+        };
+
+        portForwarding = mkOption {
+          description = "whether to request a port forwarding assignment from PIA";
+          type = types.bool;
+          default = false;
+        };
+
+        netdevTemplateFile = mkOption {
+          description = "systemd.netdev file containing template parameters with which to generate the actual netdev";
+          type = types.path;
+          default = ./systemd/network/pia.netdev.tmpl;
+          example = "/etc/systemd/network/pia.netdev.tmpl";
+        };
+
+        networkTemplateFile = mkOption {
+          description = "systemd.network file containing template parameters with which to generate the actual network";
+          type = types.path;
+          default = ./systemd/network/pia.network.tmpl;
+          example = "/etc/systemd/network/pia.network.tmpl";
         };
       };
 
@@ -92,31 +145,75 @@
         users.groups.pia = lib.mkIf (cfg.group == "pia") {
           members = [ cfg.user ];
         };
-        systemd.tmpfiles.settings."50-pia"."/var/cache/pia".d = {
-          user = cfg.user;
-          group = cfg.group;
-          mode = "0750";
+        systemd.tmpfiles.settings."50-pia-${cfg.ifname}" = {
+          "/var/cache/pia".d = {
+            user = cfg.user;
+            group = cfg.group;
+            mode = "0750";
+          };
+          "/etc/systemd/network/${cfg.ifname}.netdev".f = {
+            user = cfg.user;
+            group = config.users.groups.systemd-network.name;
+            mode = "640";
+          };
+          "/etc/systemd/network/${cfg.ifname}.network".f = {
+            user = cfg.user;
+            group = config.users.groups.systemd-network.name;
+            mode = "640";
+          };
         };
-        systemd.services.${cfg.serviceName} = {
-          name = "${cfg.serviceName}.service";
+
+        # Tunnel reset service and timer
+        systemd.services.${cfg.resetServiceName} = {
+          name = "${cfg.resetServiceName}.service";
+          path = [ pkgs.wireguard-tools ];
           serviceConfig = {
+            User = cfg.user;
             Type = "oneshot";
+            # username and password are passed in via environment variables PIA_USERNAME and PIA_PASSWORD, respectively
             EnvironmentFile = cfg.envFile;
-            ExecStart = "${pkg}/bin/pia-setup-tunnel --region ${cfg.region} --username $PIA_USERNAME --password $PIA_PASSWORD --ifname ${cfg.ifname}";
+            PassEnvironment = "PIA_USERNAME PIA_PASSWORD";
+            ExecStart = ''${pkg}/bin/pia-setup-tunnel --region ${cfg.region} --ifname ${cfg.ifname} --netdev-template "${cfg.netdevTemplateFile}" --network-template "${cfg.networkTemplateFile}"'';
             ExecStartPost = [
               "-${pkgs.iproute2}/bin/ip link set down dev ${cfg.ifname}"
               "-${pkgs.iproute2}/bin/ip link del ${cfg.ifname}"
               "${pkgs.systemd}/bin/networkctl reload"
               "${pkgs.systemd}/bin/networkctl reconfigure ${cfg.ifname}"
               "${pkgs.systemd}/bin/networkctl up ${cfg.ifname}"
+            ]
+            ++ lib.optionals (cfg.whitelistSet != null) [
+              "+${whitelist-sh}"
+            ]
+            ++ lib.optionals (cfg.portForwarding) [
               "${pkgs.coreutils}/bin/sleep 10"
-              "-${pkg}/bin/pia-portforward --ifname ${cfg.ifname} ${cfg.rTorrentParams} ${cfg.transmissionParams}"
+              "${pkg}/bin/pia-portforward --ifname ${cfg.ifname} ${cfg.rTorrentParams} ${cfg.transmissionParams}"
             ];
           };
         };
-        systemd.timers.${cfg.serviceName} = lib.mkIf (cfg.timerConfig != null) {
-          name = "${cfg.serviceName}.timer";
-          timerConfig = cfg.timerConfig;
+        systemd.timers.${cfg.resetServiceName} = lib.mkIf (cfg.resetTimerConfig != null) {
+          name = "${cfg.resetServiceName}.timer";
+          timerConfig = cfg.resetTimerConfig;
+          wantedBy = [ "timers.target" ];
+        };
+
+        # Port forwarding refresh service and timer
+        systemd.services.${cfg.refreshServiceName} = lib.mkIf (cfg.portForwarding) {
+          name = "${cfg.refreshServiceName}.service";
+          path = [ pkgs.wireguard-tools ];
+          serviceConfig = {
+            User = cfg.user;
+            Type = "oneshot";
+            EnvironmentFile = cfg.envFile;
+            PassEnvironment = "PIA_USERNAME PIA_PASSWORD";
+            ExecStart = "${pkg}/bin/pia-portforward --ifname ${cfg.ifname} --refresh ${cfg.rTorrentParams} ${cfg.transmissionParams}";
+          }
+          // lib.attrsets.optionalAttrs (cfg.whitelistSet != null) {
+            ExecStartPost = "+${whitelist-sh}";
+          };
+        };
+        systemd.timers.${cfg.refreshServiceName} = lib.mkIf (cfg.portForwarding && cfg.resetTimerConfig != null) {
+          name = "${cfg.refreshServiceName}.timer";
+          timerConfig = cfg.refreshTimerConfig;
           wantedBy = [ "timers.target" ];
         };
       };
