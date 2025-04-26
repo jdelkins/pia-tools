@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/jdelkins/pia-tools/internal/pia"
 	"github.com/jdelkins/pia-tools/internal/rtorrent"
@@ -23,8 +24,8 @@ var (
 
 func init() {
 	flag.StringVarP(&wg_if, "ifname", "i", "pia", "name of wireguard interface, used to determine cache filename")
-	flag.StringVarP(&piaUsername, "username", "u", "", "PIA username")
-	flag.StringVarP(&piaPassword, "password", "p", "", "PIA password")
+	flag.StringVarP(&piaUsername, "username", "u", os.Getenv("PIA_USERNAME"), "PIA username")
+	flag.StringVarP(&piaPassword, "password", "p", os.Getenv("PIA_PASSWORD"), "PIA password")
 	flag.BoolVarP(&refreshOnly, "refresh", "r", false, "Refresh cached port assignment, rather than getting a new assignment")
 	flag.StringVar(&rtorrentUrl, "rtorrent", "", "Notify rtorrent at this XML-RPC URL of the assigned port")
 	flag.StringVar(&transmissionAddress, "transmission", "", "Notify transmission bittorrent server at this IP address of the asisgned port")

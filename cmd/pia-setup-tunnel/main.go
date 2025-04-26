@@ -24,19 +24,19 @@ var (
 func init() {
 	const path_sn = "/etc/systemd/network"
 	flag.StringVarP(&wg_if, "ifname", "i", "pia", "name of interface \"IF\", where the systemd-networkd files will be called /etc/systemd/network/IF.{netdev,network}")
-	flag.StringVarP(&pia_username, "username", "u", "", "PIA username (REQUIRED)")
-	flag.StringVarP(&pia_password, "password", "p", "", "PIA password (REQUIRED)")
+	flag.StringVarP(&pia_username, "username", "u", os.Getenv("PIA_USERNAME"), "PIA username (REQUIRED)")
+	flag.StringVarP(&pia_password, "password", "p", os.Getenv("PIA_PASSWORD"), "PIA password (REQUIRED)")
 	flag.StringVarP(&reg_id, "region", "r", "auto", "PIA region id")
+	flag.StringVarP(&path_netdev, "netdev", "n", fmt.Sprintf("%s/%s.netdev", path_sn, wg_if), "Path to generated netdev unit file (see systemd.netdev(5))")
+	flag.StringVarP(&path_network, "network", "N", fmt.Sprintf("%s/%s.network", path_sn, wg_if), "Path to generated network unit file (see systemd.network(5))")
+	flag.StringVarP(&path_netdev_tmpl,  "netdev-template", "t", fmt.Sprintf("%s/%s.netdev.tmpl", path_sn, wg_if), "Path to netdev template unit file (see systemd.netdev(5))")
+	flag.StringVarP(&path_network_tmpl, "network-template", "T", fmt.Sprintf("%s/%s.network.tmpl", path_sn, wg_if), "Path to network template unit file (see systemd.network(5))")
 	flag.Parse()
 	if pia_username == "" || pia_password == "" {
 		fmt.Fprintf(os.Stderr, "%s: --username and --password are required arguments. Aborting.\n\n", os.Args[0])
 		flag.Usage()
 		os.Exit(1)
 	}
-	path_netdev = fmt.Sprintf("%s/%s.netdev", path_sn, wg_if)
-	path_network = fmt.Sprintf("%s/%s.network", path_sn, wg_if)
-	path_netdev_tmpl = fmt.Sprintf("%s/%s.netdev.tmpl", path_sn, wg_if)
-	path_network_tmpl = fmt.Sprintf("%s/%s.network.tmpl", path_sn, wg_if)
 }
 
 func main() {
