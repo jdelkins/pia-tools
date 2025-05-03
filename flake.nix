@@ -22,7 +22,7 @@
 
     module = with lib; with options; { config, pkgs, utils, ...}: let
       cfg = config.pia-tools;
-      whitelist-sh = pkgs.writeShellScript "pia-whitelist.sh" ''
+      whitelist-sh = pkgs.writeShellScript "pia-whitelist-${cfg.ifname}.sh" ''
         ip=$(${pkgs.jq}/bin/jq -r .server_ip </var/cache/pia/${cfg.ifname}.json)
         ${pkgs.nftables}/bin/nft add element ${cfg.whitelistSet} "{$ip}" && echo "Whitelisted $ip"
       '';
