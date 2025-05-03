@@ -10,9 +10,9 @@
 
     pkg = pkgs.buildGoModule {
       pname = "pia-tools";
-      version = "1.1.6";
+      version = "1.2.0";
       src = ./.;
-      vendorHash = "sha256-V/yJl12zPhG/e0IeUzFiOrJTtm9Kl/MEb2v2xV7xzAI=";
+      vendorHash = "sha256-QJ5KOZ/SLfOk6A/vQR4RK7OsNGbwB8nxC37YCz3Xy+w=";
       meta = {
         description = "Toolset to manage wireguard tunnels to privateinternetaccess.com";
         homepage = "https://github.com/jdelkins/pia-tools";
