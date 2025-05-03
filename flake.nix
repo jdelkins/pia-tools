@@ -29,14 +29,15 @@
     in {
       options.pia-tools = {
         enable = mkEnableOption "pia-tools";
+
         user = mkOption {
-          description = "User to run the tool as.";
+          description = "User to run the tool as";
           type = types.str;
           default = "pia";
         };
 
         group = mkOption {
-          description = "Group to run the tool as.";
+          description = "Group to run the tool as";
           type = types.str;
           default = "pia";
         };
@@ -48,7 +49,7 @@
         };
 
         region = mkOption {
-          description = "Region to connect to, or auto by default.";
+          description = "Region to connect to, or auto by default";
           type = types.str;
           default = "auto";
         };
@@ -165,6 +166,7 @@
 
         # Tunnel reset service and timer
         systemd.services.${cfg.resetServiceName} = {
+          description = "Reset the ${cfg.ifname} VPN tunnel";
           name = "${cfg.resetServiceName}.service";
           path = [ pkgs.wireguard-tools ];
           serviceConfig = {
@@ -191,6 +193,7 @@
           };
         };
         systemd.timers.${cfg.resetServiceName} = lib.mkIf (cfg.resetTimerConfig != null) {
+          description = "Reset the ${cfg.ifname} VPN tunnel";
           name = "${cfg.resetServiceName}.timer";
           timerConfig = cfg.resetTimerConfig;
           wantedBy = [ "timers.target" ];
@@ -198,6 +201,7 @@
 
         # Port forwarding refresh service and timer
         systemd.services.${cfg.refreshServiceName} = lib.mkIf (cfg.portForwarding) {
+          description = "Refresh port forwarding assignment for the ${cfg.ifname} VPN tunnel";
           name = "${cfg.refreshServiceName}.service";
           path = [ pkgs.wireguard-tools ];
           serviceConfig = {
@@ -211,7 +215,8 @@
             ExecStartPost = "+${whitelist-sh}";
           };
         };
-        systemd.timers.${cfg.refreshServiceName} = lib.mkIf (cfg.portForwarding && cfg.resetTimerConfig != null) {
+        systemd.timers.${cfg.refreshServiceName} = lib.mkIf (cfg.portForwarding && cfg.refreshTimerConfig != null) {
+          description = "Refresh port forwarding assignment for the ${cfg.ifname} VPN tunnel";
           name = "${cfg.refreshServiceName}.timer";
           timerConfig = cfg.refreshTimerConfig;
           wantedBy = [ "timers.target" ];
