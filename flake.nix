@@ -52,6 +52,7 @@
           description = "Region to connect to, or auto by default";
           type = types.str;
           default = "auto";
+          example = "ca_toronto";
         };
 
         rTorrentParams = mkOption {
@@ -73,7 +74,7 @@
             Required. Path to file setting environment variables to be used
             in setting up the tunnel device ${cfg.ifname}.
             The recognized variables are as follows. Read accompanying documentation
-            and/or use ``${pkg}/bin/pia-setup-tunnel --help``.
+            and/or use ``pia-setup-tunnel --help``.
 
                PIA_USERNAME (required)
                PIA_PASSWORD (required)
@@ -221,6 +222,8 @@
           timerConfig = cfg.refreshTimerConfig;
           wantedBy = [ "timers.target" ];
         };
+
+        environment.systemPackages = [ pkg ];
       };
     };
   in {
