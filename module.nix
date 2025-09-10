@@ -31,7 +31,9 @@ in
   options.pia-tools = {
     enable = mkEnableOption "pia-tools";
 
-    package = mkPackageOption pkgs "pia-tools" {
+    package = mkOption {
+      description = "The pia-tools package to use";
+      type = types.package;
       default = pia-tools;
     };
 
