@@ -24,7 +24,7 @@
 
             pkg = pkgs.buildGoModule {
               pname = "pia-tools";
-              version = "1.2.1";
+              version = "1.3.0";
               src = ./.;
               vendorHash = "sha256-QJ5KOZ/SLfOk6A/vQR4RK7OsNGbwB8nxC37YCz3Xy+w=";
               meta = {
