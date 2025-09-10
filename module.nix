@@ -194,7 +194,7 @@ in
         ]
         ++ lib.optionals (cfg.portForwarding) [
           "${pkgs.coreutils}/bin/sleep 10"
-          "${config.package}/bin/pia-portforward --ifname ${cfg.ifname} ${cfg.rTorrentParams} ${cfg.transmissionParams}"
+          "${cfg.package}/bin/pia-portforward --ifname ${cfg.ifname} ${cfg.rTorrentParams} ${cfg.transmissionParams}"
         ];
       };
     };
@@ -215,7 +215,7 @@ in
         Type = "oneshot";
         EnvironmentFile = cfg.envFile;
         PassEnvironment = "PIA_USERNAME PIA_PASSWORD";
-        ExecStart = "${config.package}/bin/pia-portforward --ifname ${cfg.ifname} --refresh ${cfg.rTorrentParams} ${cfg.transmissionParams}";
+        ExecStart = "${cfg.package}/bin/pia-portforward --ifname ${cfg.ifname} --refresh ${cfg.rTorrentParams} ${cfg.transmissionParams}";
       }
       // lib.attrsets.optionalAttrs (cfg.whitelistSet != null) {
         ExecStartPost = "+${whitelist-sh}";
