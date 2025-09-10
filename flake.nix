@@ -45,6 +45,24 @@
               pia-tools = module;
               default = module;
             };
+            devShells = {
+              default = pkgs.mkShell {
+                packages = with pkgs; [
+                  go               # compiler & toolchain
+                  gopls            # language server
+                  delve            # debugger (dlv)
+                  golangci-lint    # linter aggregator
+                  golangci-lint-langserver
+                  wireguard-tools  # handy for testing the app’s domain
+                  # goreleaser
+                ];
+
+                shellHook = ''
+                  echo "pia-tools dev shell — $(go version)"
+                  export CGO_ENABLED=0
+                '';
+              };
+            };
           }
         )
       );
