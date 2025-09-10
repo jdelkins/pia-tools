@@ -16,7 +16,7 @@ func main() {
 	}
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "ID", "NAME", "PING", "WG?", "PF?")
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "ID",             "NAME",                    "PING",      "WG?", "PF?")
 	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "==============", "=======================", "=========", "===", "===")
 	for i := range regions {
 		r := &regions[i]

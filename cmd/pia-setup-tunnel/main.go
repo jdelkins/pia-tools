@@ -15,6 +15,7 @@ var (
 	path_network      string
 	path_netdev_tmpl  string
 	path_network_tmpl string
+	path_cache        string
 	pia_username      string
 	pia_password      string
 	reg_id            string
@@ -31,6 +32,7 @@ func init() {
 	flag.StringVarP(&path_network, "network", "N", "", "Path to generated network unit file (see systemd.network(5))")
 	flag.StringVarP(&path_netdev_tmpl,  "netdev-template", "t", "", "Path to netdev template unit file (see systemd.netdev(5))")
 	flag.StringVarP(&path_network_tmpl, "network-template", "T", "", "Path to network template unit file (see systemd.network(5))")
+	flag.StringVarP(&path_cache, "cachedir", "c", "/var/cache/pia", "Path in which to store security sensitive cache files")
 	flag.Parse()
 	if path_netdev == "" {
 		path_netdev = fmt.Sprintf("%s/%s.netdev", path_sn, wg_if)
@@ -84,7 +86,7 @@ func main() {
 	// Create a Tunnel struct and populate it with fresh WG keys and an access token
 	tun := pia.NewTunnel(reg, wg_if)
 	defer func() {
-		if err := tun.SaveCache(); err != nil {
+		if err := tun.SaveCache(path_cache); err != nil {
 			log.Panicf("Could not save cache: %v", err)
 		}
 	}()

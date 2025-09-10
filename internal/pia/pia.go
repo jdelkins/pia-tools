@@ -10,8 +10,6 @@ import (
 	"os"
 )
 
-const pathCache = "/var/cache/pia"
-
 type Server struct {
 	Ip string `json:"ip"`
 	Cn string `json:"cn"`
@@ -133,7 +131,7 @@ func (tun *Tunnel) Activate() error {
 	return nil
 }
 
-func (tun *Tunnel) SaveCache() error {
+func (tun *Tunnel) SaveCache(pathCache string) error {
 	path := fmt.Sprintf("%s/%s.json", pathCache, tun.Interface)
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o660)
 	if err != nil {
@@ -146,7 +144,7 @@ func (tun *Tunnel) SaveCache() error {
 	return nil
 }
 
-func ReadCache(ifname string) (*Tunnel, error) {
+func ReadCache(pathCache string, ifname string) (*Tunnel, error) {
 	path := fmt.Sprintf("%s/%s.json", pathCache, ifname)
 	file, err := os.Open(path)
 	if err != nil {

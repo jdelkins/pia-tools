@@ -14,7 +14,6 @@ let
 
   inherit (lib)
     mkOption
-    mkPackageOption
     types
     ;
 
@@ -23,7 +22,7 @@ let
     ;
 
   whitelist-sh = pkgs.writeShellScript "pia-whitelist-${cfg.ifname}.sh" ''
-    ip=$(${pkgs.jq}/bin/jq -r .server_ip </var/cache/pia/${cfg.ifname}.json)
+    ip=$(${pkgs.jq}/bin/jq -r .server_ip <${cfg.cacheDir}/${cfg.ifname}.json)
     ${pkgs.nftables}/bin/nft add element ${cfg.whitelistSet} "{$ip}" && echo "Whitelisted $ip"
   '';
 in
@@ -47,6 +46,13 @@ in
       description = "Group to run the tool as";
       type = types.str;
       default = "pia";
+    };
+
+    cacheDir = mkOption {
+      description = "Where to store tunnel descriptions in json format, containing private keys.";
+      type = types.path;
+      example = "/run/pia";
+      default = "/var/cache/pia";
     };
 
     ifname = mkOption {
@@ -106,7 +112,7 @@ in
     };
 
     refreshServiceName = mkOption {
-      description = "Name of systemd service for pia-tools tunnel port forwarding refresh";
+      description = "Name of systemd service for pia-tools tunnel port forwarding refresh.";
       type = types.str;
       default = "pia-pf-refresh-${cfg.ifname}";
     };
@@ -121,19 +127,20 @@ in
     };
 
     whitelistSet = mkOption {
-      description = "nftables set to which to add the configured server's ip after resetting";
+      description = "nftables set to which to add the configured server's ip after resetting; null if none.";
       type = with types; nullOr str;
+      default = null;
       example = "inet filter whitelist_4";
     };
 
     portForwarding = mkOption {
-      description = "whether to request a port forwarding assignment from PIA";
+      description = "whether to request a port forwarding assignment from PIA.";
       type = types.bool;
       default = false;
     };
 
     netdevTemplateFile = mkOption {
-      description = "systemd.netdev file containing template parameters with which to generate the actual netdev";
+      description = "systemd.netdev file containing template parameters with which to generate the actual netdev.";
       type = types.path;
       default = ./systemd/network/pia.netdev.tmpl;
       example = "/etc/systemd/network/pia.netdev.tmpl";
@@ -167,7 +174,7 @@ in
         };
       in
       {
-        "/var/cache/pia" = mk "d" cfg.group;
+        ${cfg.cacheDir} = mk "d" cfg.group;
         "/etc/systemd/network/${cfg.ifname}.netdev" = mk "f" config.users.groups.systemd-network.name;
         "/etc/systemd/network/${cfg.ifname}.network" = mk "f" config.users.groups.systemd-network.name;
       };
@@ -183,20 +190,20 @@ in
         # username and password are passed in via environment variables PIA_USERNAME and PIA_PASSWORD, respectively
         EnvironmentFile = cfg.envFile;
         PassEnvironment = "PIA_USERNAME PIA_PASSWORD";
-        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --region ${cfg.region} --ifname ${cfg.ifname} --netdev-template "${cfg.netdevTemplateFile}" --network-template "${cfg.networkTemplateFile}"'';
+        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --cachedir ${cfg.cacheDir} --region ${cfg.region} --ifname ${cfg.ifname} --netdev-template "${cfg.netdevTemplateFile}" --network-template "${cfg.networkTemplateFile}"'';
         ExecStartPost = [
-          "-${pkgs.iproute2}/bin/ip link set down dev ${cfg.ifname}"
-          "-${pkgs.iproute2}/bin/ip link del ${cfg.ifname}"
-          "${pkgs.systemd}/bin/networkctl reload"
-          "${pkgs.systemd}/bin/networkctl reconfigure ${cfg.ifname}"
-          "${pkgs.systemd}/bin/networkctl up ${cfg.ifname}"
+          "+-${pkgs.iproute2}/bin/ip link set down dev ${cfg.ifname}"
+          "+-${pkgs.iproute2}/bin/ip link del ${cfg.ifname}"
+          "+${pkgs.systemd}/bin/networkctl reload"
+          "+${pkgs.systemd}/bin/networkctl reconfigure ${cfg.ifname}"
+          "+${pkgs.systemd}/bin/networkctl up ${cfg.ifname}"
         ]
         ++ lib.optionals (cfg.whitelistSet != null) [
           "+${whitelist-sh}"
         ]
         ++ lib.optionals (cfg.portForwarding) [
           "${pkgs.coreutils}/bin/sleep 10"
-          "${cfg.package}/bin/pia-portforward --ifname ${cfg.ifname} ${cfg.rTorrentParams} ${cfg.transmissionParams}"
+          "${cfg.package}/bin/pia-portforward --cachedir ${cfg.cacheDir} --ifname ${cfg.ifname} ${cfg.rTorrentParams} ${cfg.transmissionParams}"
         ];
       };
     };
@@ -217,7 +224,7 @@ in
         Type = "oneshot";
         EnvironmentFile = cfg.envFile;
         PassEnvironment = "PIA_USERNAME PIA_PASSWORD";
-        ExecStart = "${cfg.package}/bin/pia-portforward --ifname ${cfg.ifname} --refresh ${cfg.rTorrentParams} ${cfg.transmissionParams}";
+        ExecStart = "${cfg.package}/bin/pia-portforward --cachedir ${cfg.cacheDir} --ifname ${cfg.ifname} --refresh ${cfg.rTorrentParams} ${cfg.transmissionParams}";
       }
       // lib.attrsets.optionalAttrs (cfg.whitelistSet != null) {
         ExecStartPost = "+${whitelist-sh}";

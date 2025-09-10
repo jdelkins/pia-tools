@@ -14,6 +14,7 @@ import (
 var (
 	piaUsername          string
 	piaPassword          string
+	path_cache           string
 	wg_if                string
 	refreshOnly          bool
 	rtorrentUrl          string
@@ -31,13 +32,14 @@ func init() {
 	flag.StringVar(&transmissionAddress, "transmission", "", "Notify transmission bittorrent server at this IP address of the asisgned port")
 	flag.StringVar(&transmissionUsername, "transmission-username", "", "Transmission server username")
 	flag.StringVar(&transmissionUsername, "transmission-password", "", "Transmission server password")
+	flag.StringVarP(&path_cache, "cachedir", "c", "/var/cache/pia", "Path in which to store security sensitive cache files")
 	flag.Parse()
 }
 
 func main() {
-	tun, err := pia.ReadCache(wg_if)
+	tun, err := pia.ReadCache(path_cache, wg_if)
 	defer func() {
-		if err := tun.SaveCache(); err != nil {
+		if err := tun.SaveCache(path_cache); err != nil {
 			log.Panicf("Could not save cache: %v", err)
 		}
 	}()
