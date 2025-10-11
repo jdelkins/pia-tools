@@ -52,7 +52,7 @@ func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error 
 	}
 	nd_tmpl, err := template.New(tun.Interface + ".netdev.tmpl").Funcs(sprig.TxtFuncMap()).Funcs(extraFuncs).ParseFiles(template_path)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error parsing template from file %s: %s", template_path, err)
 	}
 
 	grp, err := user.LookupGroup("systemd-network")
@@ -72,7 +72,7 @@ func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error 
 	defer file.Close()
 
 	if err := nd_tmpl.Execute(file, tun); err != nil {
-		return err
+		return fmt.Errorf("Error executing template: %s", err)
 	}
 
 	return nil
