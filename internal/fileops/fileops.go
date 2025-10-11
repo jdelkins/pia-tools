@@ -34,6 +34,14 @@ func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error 
 		return fmt.Errorf("Error parsing template from file %s: %s", template_path, err)
 	}
 
+	// some debugging
+	data, err := os.ReadFile(template_path)
+	if err != nil {
+		return fmt.Errorf("Couldn't read netdev template: %s", err)
+	}
+	fmt.Printf("Here is the template:\n%s\n", data)
+	fmt.Printf("Here is the tunnel:\n%v\n", tun)
+
 	file, err := createFile(output_path, 0o640)
 	if err != nil {
 		return err
