@@ -187,11 +187,18 @@ in
       serviceConfig = {
         User = cfg.user;
         Type = "oneshot";
+        ReadWritePaths = [
+          "/etc/systemd/network"
+          cfg.cacheDir
+        ];
+        ReadOnlyPaths = [ "/nix/store" ];
         # username and password are passed in via environment variables PIA_USERNAME and PIA_PASSWORD, respectively
         EnvironmentFile = cfg.envFile;
         PassEnvironment = "PIA_USERNAME PIA_PASSWORD";
-        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cachedir ${cfg.cacheDir} --region ${cfg.region} --ifname ${cfg.ifname} --netdev-template "${cfg.netdevTemplateFile}" --network-template "${cfg.networkTemplateFile}"'';
+        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cachedir ${cfg.cacheDir} --region ${cfg.region} --ifname ${cfg.ifname} --netdev-template "${cfg.netdevTemplateFile}" --netdev "${cfg.cacheDir}/${cfg.ifname}.netdev" --network-template "${cfg.networkTemplateFile}" --network "${cfg.cacheDir}/${cfg.ifname}.network"'';
         ExecStartPost = [
+          ''+${pkgs.coreutils}/bin/install -o systemd-network -g systemd-network -m 0440 "${cfg.cacheDir}/${cfg.ifname}.netdev" "/etc/systemd/network/10-${cfg.ifname}.netdev"''
+          ''+${pkgs.coreutils}/bin/install -o root -g root -m 0444 "${cfg.cacheDir}/${cfg.ifname}.network" "/etc/systemd/network/40-${cfg.ifname}.network"''
           "+-${pkgs.iproute2}/bin/ip link set down dev ${cfg.ifname}"
           "+-${pkgs.iproute2}/bin/ip link del ${cfg.ifname}"
           "+${pkgs.systemd}/bin/networkctl reload"
@@ -207,6 +214,7 @@ in
         ];
       };
     };
+
     systemd.timers.${cfg.resetServiceName} = lib.mkIf (cfg.resetTimerConfig != null) {
       description = "Reset the ${cfg.ifname} VPN tunnel";
       name = "${cfg.resetServiceName}.timer";
