@@ -9,14 +9,14 @@ import (
 	"github.com/jdelkins/pia-tools/internal/pia"
 )
 
-func genKeypair(tun *pia.Tunnel) error {
-	privkey_b, err := exec.Command("wg", "genkey").CombinedOutput()
+func genKeypair(tun *pia.Tunnel, wg_binary string) error {
+	privkey_b, err := exec.Command(wg_binary, "genkey").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%v; %s", err, privkey_b)
 	}
 	tun.PrivateKey = strings.TrimSpace(string(privkey_b))
 
-	cmd := exec.Command("wg", "pubkey")
+	cmd := exec.Command(wg_binary, "pubkey")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("StdinPipe: %v", err)

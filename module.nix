@@ -190,7 +190,7 @@ in
         # username and password are passed in via environment variables PIA_USERNAME and PIA_PASSWORD, respectively
         EnvironmentFile = cfg.envFile;
         PassEnvironment = "PIA_USERNAME PIA_PASSWORD";
-        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --cachedir ${cfg.cacheDir} --region ${cfg.region} --ifname ${cfg.ifname} --netdev-template "${cfg.netdevTemplateFile}" --network-template "${cfg.networkTemplateFile}"'';
+        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cachedir ${cfg.cacheDir} --region ${cfg.region} --ifname ${cfg.ifname} --netdev-template "${cfg.netdevTemplateFile}" --network-template "${cfg.networkTemplateFile}"'';
         ExecStartPost = [
           "+-${pkgs.iproute2}/bin/ip link set down dev ${cfg.ifname}"
           "+-${pkgs.iproute2}/bin/ip link del ${cfg.ifname}"

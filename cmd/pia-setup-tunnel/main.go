@@ -20,6 +20,7 @@ var (
 	pia_password      string
 	reg_id            string
 	wg_if             string
+	wg_binary         string
 )
 
 func init() {
@@ -33,6 +34,7 @@ func init() {
 	flag.StringVarP(&path_netdev_tmpl,  "netdev-template", "t", "", "Path to netdev template unit file (see systemd.netdev(5))")
 	flag.StringVarP(&path_network_tmpl, "network-template", "T", "", "Path to network template unit file (see systemd.network(5))")
 	flag.StringVarP(&path_cache, "cachedir", "c", "/var/cache/pia", "Path in which to store security sensitive cache files")
+	flag.StringVarP(&wg_binary, "wg-binary", "b", "wg", "Path to the ``wg'' binary from wireguard-tools'")
 	flag.Parse()
 	if path_netdev == "" {
 		path_netdev = fmt.Sprintf("%s/%s.netdev", path_sn, wg_if)
@@ -90,7 +92,7 @@ func main() {
 			log.Panicf("Could not save cache: %v", err)
 		}
 	}()
-	if err := genKeypair(tun); err != nil {
+	if err := genKeypair(tun, wg_binary); err != nil {
 		log.Panicf("Could not generate keypair: %v", err)
 	}
 	if !tun.Token.Valid() {
