@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -29,7 +30,7 @@ func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error 
 	extraFuncs := template.FuncMap{
 		"server": wgserver,
 	}
-	nd_tmpl, err := template.New(tun.Interface + ".netdev.tmpl").Funcs(sprig.TxtFuncMap()).Funcs(extraFuncs).ParseFiles(template_path)
+	nd_tmpl, err := template.New(filepath.Base(template_path)).Funcs(sprig.TxtFuncMap()).Funcs(extraFuncs).ParseFiles(template_path)
 	if err != nil {
 		return fmt.Errorf("Error parsing template from file %s: %s", template_path, err)
 	}
@@ -40,7 +41,7 @@ func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error 
 		return fmt.Errorf("Couldn't read netdev template: %s", err)
 	}
 	fmt.Printf("Here is the template:\n%s\n", data)
-	fmt.Printf("Here is the tunnel:\n%v\n", tun)
+	fmt.Printf("Here is the tunnel:\n%+v\n", tun)
 
 	file, err := createFile(output_path, 0o640)
 	if err != nil {
@@ -56,7 +57,7 @@ func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error 
 }
 
 func CreateNetworkFile(tun *pia.Tunnel, output_path, template_path string) error {
-	tmpl, err := template.New(tun.Interface + ".network.tmpl").Funcs(sprig.TxtFuncMap()).ParseFiles(template_path)
+	tmpl, err := template.New(filepath.Base(template_path)).Funcs(sprig.TxtFuncMap()).ParseFiles(template_path)
 	if err != nil {
 		return err
 	}
