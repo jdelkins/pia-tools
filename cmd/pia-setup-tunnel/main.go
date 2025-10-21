@@ -34,7 +34,7 @@ func init() {
 	flag.StringVarP(&path_netdev_tmpl, "netdev-template", "t", "", "Path to netdev template unit file (see systemd.netdev(5))")
 	flag.StringVarP(&path_network_tmpl, "network-template", "T", "", "Path to network template unit file (see systemd.network(5))")
 	flag.StringVarP(&path_cache, "cachedir", "c", "/var/cache/pia", "Path in which to store security sensitive cache files")
-	flag.StringVarP(&wg_binary, "wg-binary", "b", "wg", "Path to the ``wg'' binary from wireguard-tools'")
+	flag.StringVarP(&wg_binary, "wg-binary", "b", "wg", "Path to the 'wg' binary from wireguard-tools")
 	flag.Parse()
 	if pia_username == "" {
 		pia_username = os.Getenv("PIA_USERNAME")
