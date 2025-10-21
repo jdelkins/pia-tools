@@ -25,8 +25,8 @@ var (
 
 func init() {
 	flag.StringVarP(&wg_if, "ifname", "i", "pia", "name of wireguard interface, used to determine cache filename")
-	flag.StringVarP(&piaUsername, "username", "u", os.Getenv("PIA_USERNAME"), "PIA username")
-	flag.StringVarP(&piaPassword, "password", "p", os.Getenv("PIA_PASSWORD"), "PIA password")
+	flag.StringVarP(&piaUsername, "username", "u", "", "PIA username (REQUIRED)")
+	flag.StringVarP(&piaPassword, "password", "p", "", "PIA password (REQUIRED)")
 	flag.BoolVarP(&refreshOnly, "refresh", "r", false, "Refresh cached port assignment, rather than getting a new assignment")
 	flag.StringVar(&rtorrentUrl, "rtorrent", "", "Notify rtorrent at this XML-RPC URL of the assigned port")
 	flag.StringVar(&transmissionAddress, "transmission", "", "Notify transmission bittorrent server at this IP address of the asisgned port")
@@ -34,6 +34,12 @@ func init() {
 	flag.StringVar(&transmissionUsername, "transmission-password", "", "Transmission server password")
 	flag.StringVarP(&path_cache, "cachedir", "c", "/var/cache/pia", "Path in which to store security sensitive cache files")
 	flag.Parse()
+	if piaUsername == "" {
+		piaUsername = os.Getenv("PIA_USERNAME")
+	}
+	if piaPassword == "" {
+		piaPassword = os.Getenv("PIA_PASSWORD")
+	}
 }
 
 func main() {
