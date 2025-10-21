@@ -30,149 +30,146 @@ let
   '';
 in
 {
-  options.pia-tools = (
-    { config, ... }:
-    {
-      enable = mkEnableOption "pia-tools";
+  options.pia-tools = {
+    enable = mkEnableOption "pia-tools";
 
-      package = mkOption {
-        description = "The pia-tools package to use";
-        type = types.package;
-        default = pia-tools;
+    package = mkOption {
+      description = "The pia-tools package to use";
+      type = types.package;
+      default = pia-tools;
+    };
+
+    user = mkOption {
+      description = "User to run the tool as";
+      type = types.str;
+      default = "pia";
+    };
+
+    group = mkOption {
+      description = "Group to run the tool as";
+      type = types.str;
+      default = "pia";
+    };
+
+    cacheDir = mkOption {
+      description = "Where to store tunnel descriptions in json format, containing private keys.";
+      type = types.path;
+      example = "/run/pia";
+      default = "/var/cache/pia";
+    };
+
+    ifname = mkOption {
+      description = "Name of PIA WireGuard network interface";
+      type = types.str;
+      default = "wg_pia";
+    };
+
+    region = mkOption {
+      description = "Region to connect to, or auto by default";
+      type = types.str;
+      default = "auto";
+      example = "ca_toronto";
+    };
+
+    rTorrentParams = mkOption {
+      description = "Additional parameters to pia-setup-tunnel to connect to rTorrent";
+      type = types.str;
+      default = "";
+      example = "--rtorrent https://rtorrent.local";
+    };
+
+    transmissionParams = mkOption {
+      description = "Additional parameters to pia-setup-tunnel to connect to Transmission bittorrent server";
+      type = types.str;
+      example = "--transmission 192.168.1.20 --transmission-username $TRANSMISSION_USERNAME --transmission-password $TRANSMISSION_PASSWORD";
+      default = "";
+    };
+
+    envFile = mkOption {
+      description = ''
+        Required. Path to file setting environment variables to be used
+        in setting up the tunnel device ${cfg.ifname}.
+        The recognized variables are as follows. Read accompanying documentation
+        and/or use ``pia-setup-tunnel --help``.
+
+           PIA_USERNAME (required)
+           PIA_PASSWORD (required)
+      '';
+      type = types.path;
+    };
+
+    resetServiceName = mkOption {
+      description = "Name of systemd service for pia-tools tunnel reset";
+      type = types.str;
+      default = "pia-reset-${cfg.ifname}";
+    };
+
+    resetTimerConfig = mkOption {
+      description = "Timer defining frequency of resetting the tunnel. Set to null to disable.";
+      type = with types; nullOr (attrsOf utils.systemdUtils.unitOptions.unitOption);
+      example = "null";
+      default = {
+        OnCalendar = "Wed *-*-* 03:00:00";
+        RandomizedDelaySec = "72h";
       };
+    };
 
-      user = mkOption {
-        description = "User to run the tool as";
-        type = types.str;
-        default = "pia";
+    refreshServiceName = mkOption {
+      description = "Name of systemd service for pia-tools tunnel port forwarding refresh.";
+      type = types.str;
+      default = "pia-pf-refresh-${cfg.ifname}";
+    };
+
+    refreshTimerConfig = mkOption {
+      description = "Timer defining frequency of refreshing the tunnel's port forwarding assignment. Set to null to disable.";
+      type = with types; nullOr (attrsOf utils.systemdUtils.unitOptions.unitOption);
+      example = "null";
+      default = {
+        OnCalendar = "*-*-* *:00/15:00";
       };
+    };
 
-      group = mkOption {
-        description = "Group to run the tool as";
-        type = types.str;
-        default = "pia";
-      };
+    whitelistSet = mkOption {
+      description = "nftables set to which to add the configured server's ip after resetting; null if none.";
+      type = with types; nullOr str;
+      default = null;
+      example = "inet filter whitelist_4";
+    };
 
-      cacheDir = mkOption {
-        description = "Where to store tunnel descriptions in json format, containing private keys.";
-        type = types.path;
-        example = "/run/pia";
-        default = "/var/cache/pia";
-      };
+    portForwarding = mkOption {
+      description = "whether to request a port forwarding assignment from PIA.";
+      type = types.bool;
+      default = false;
+    };
 
-      ifname = mkOption {
-        description = "Name of PIA WireGuard network interface";
-        type = types.str;
-        default = "wg_pia";
-      };
+    netdevTemplateFile = mkOption {
+      description = "systemd.netdev file containing template parameters with which to generate the actual netdev.";
+      type = types.path;
+      default = ./systemd/network/pia.netdev.tmpl;
+      example = "/etc/systemd/network/pia.netdev.tmpl";
+    };
 
-      region = mkOption {
-        description = "Region to connect to, or auto by default";
-        type = types.str;
-        default = "auto";
-        example = "ca_toronto";
-      };
+    networkTemplateFile = mkOption {
+      description = "systemd.network file containing template parameters with which to generate the actual network";
+      type = types.path;
+      default = ./systemd/network/pia.network.tmpl;
+      example = "/etc/systemd/network/pia.network.tmpl";
+    };
 
-      rTorrentParams = mkOption {
-        description = "Additional parameters to pia-setup-tunnel to connect to rTorrent";
-        type = types.str;
-        default = "";
-        example = "--rtorrent https://rtorrent.local";
-      };
+    netdevFile = mkOption {
+      description = "systemd.netdev file path, specifying the location to install the generated netdev.";
+      type = types.path;
+      default = "/etc/systemd/network/10-${cfg.ifname}.netdev";
+      example = "/etc/systemd/network/10-pia.netdev";
+    };
 
-      transmissionParams = mkOption {
-        description = "Additional parameters to pia-setup-tunnel to connect to Transmission bittorrent server";
-        type = types.str;
-        example = "--transmission 192.168.1.20 --transmission-username $TRANSMISSION_USERNAME --transmission-password $TRANSMISSION_PASSWORD";
-        default = "";
-      };
-
-      envFile = mkOption {
-        description = ''
-          Required. Path to file setting environment variables to be used
-          in setting up the tunnel device ${cfg.ifname}.
-          The recognized variables are as follows. Read accompanying documentation
-          and/or use ``pia-setup-tunnel --help``.
-
-             PIA_USERNAME (required)
-             PIA_PASSWORD (required)
-        '';
-        type = types.path;
-      };
-
-      resetServiceName = mkOption {
-        description = "Name of systemd service for pia-tools tunnel reset";
-        type = types.str;
-        default = "pia-reset-${cfg.ifname}";
-      };
-
-      resetTimerConfig = mkOption {
-        description = "Timer defining frequency of resetting the tunnel. Set to null to disable.";
-        type = with types; nullOr (attrsOf utils.systemdUtils.unitOptions.unitOption);
-        example = "null";
-        default = {
-          OnCalendar = "Wed *-*-* 03:00:00";
-          RandomizedDelaySec = "72h";
-        };
-      };
-
-      refreshServiceName = mkOption {
-        description = "Name of systemd service for pia-tools tunnel port forwarding refresh.";
-        type = types.str;
-        default = "pia-pf-refresh-${cfg.ifname}";
-      };
-
-      refreshTimerConfig = mkOption {
-        description = "Timer defining frequency of refreshing the tunnel's port forwarding assignment. Set to null to disable.";
-        type = with types; nullOr (attrsOf utils.systemdUtils.unitOptions.unitOption);
-        example = "null";
-        default = {
-          OnCalendar = "*-*-* *:00/15:00";
-        };
-      };
-
-      whitelistSet = mkOption {
-        description = "nftables set to which to add the configured server's ip after resetting; null if none.";
-        type = with types; nullOr str;
-        default = null;
-        example = "inet filter whitelist_4";
-      };
-
-      portForwarding = mkOption {
-        description = "whether to request a port forwarding assignment from PIA.";
-        type = types.bool;
-        default = false;
-      };
-
-      netdevTemplateFile = mkOption {
-        description = "systemd.netdev file containing template parameters with which to generate the actual netdev.";
-        type = types.path;
-        default = ./systemd/network/pia.netdev.tmpl;
-        example = "/etc/systemd/network/pia.netdev.tmpl";
-      };
-
-      networkTemplateFile = mkOption {
-        description = "systemd.network file containing template parameters with which to generate the actual network";
-        type = types.path;
-        default = ./systemd/network/pia.network.tmpl;
-        example = "/etc/systemd/network/pia.network.tmpl";
-      };
-
-      netdevFile = mkOption {
-        description = "systemd.netdev file path, specifying the location to install the generated netdev.";
-        type = types.path;
-        default = "/etc/systemd/network/10-${config.ifname}.netdev";
-        example = "/etc/systemd/network/10-pia.netdev";
-      };
-
-      networkFile = mkOption {
-        description = "systemd.network file path, specifying the location to install the generated network.";
-        type = types.path;
-        default = "/etc/systemd/network/40-${config.ifname}.network";
-        example = "/etc/systemd/network/40-pia.network";
-      };
-    }
-  );
+    networkFile = mkOption {
+      description = "systemd.network file path, specifying the location to install the generated network.";
+      type = types.path;
+      default = "/etc/systemd/network/40-${cfg.ifname}.network";
+      example = "/etc/systemd/network/40-pia.network";
+    };
+  };
 
   config = lib.mkIf cfg.enable {
     users.users.pia = lib.mkIf (cfg.user == "pia") {
