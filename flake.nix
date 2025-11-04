@@ -26,7 +26,7 @@
               pname = "pia-tools";
               version = "1.3.0";
               src = ./.;
-              vendorHash = "sha256-QJ5KOZ/SLfOk6A/vQR4RK7OsNGbwB8nxC37YCz3Xy+w=";
+              vendorHash = "sha256-JG0kAdmlLv1aOa8y5S5IOKN8pWvqc6e8S8ApKGnA+G4=";
               meta = {
                 description = "Toolset to manage wireguard tunnels to privateinternetaccess.com";
                 homepage = "https://github.com/jdelkins/pia-tools";
