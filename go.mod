@@ -5,7 +5,7 @@ go 1.24
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/go-ping/ping v1.2.0
-	github.com/hekmon/transmissionrpc/v2 v2.0.1
+	github.com/hekmon/transmissionrpc/v3 v3.0.0
 	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b
 	github.com/spf13/pflag v1.0.6
 )
