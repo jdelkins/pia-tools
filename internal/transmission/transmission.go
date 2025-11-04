@@ -2,12 +2,22 @@ package transmission
 
 import (
 	"context"
+	"net/url"
 
-	xm "github.com/hekmon/transmissionrpc/v2"
+	xm "github.com/hekmon/transmissionrpc/v3"
 )
 
 func Notify(server, username, password string, port int) error {
-	client, err := xm.New(server, username, password, nil)
+	endpoint, err := url.Parse(server)
+	if err != nil {
+		return err
+	}
+
+	endpoint.User = url.UserPassword(username, password)
+
+	config := xm.Config { }
+
+	client, err := xm.New(endpoint, &config)
 	if err != nil {
 		return err
 	}
@@ -23,7 +33,16 @@ func Notify(server, username, password string, port int) error {
 }
 
 func Confirm(server, username, password string) (int, error) {
-	client, err := xm.New(server, username, password, nil)
+	endpoint, err := url.Parse(server)
+	if err != nil {
+		return 0, err
+	}
+
+	endpoint.User = url.UserPassword(username, password)
+
+	config := xm.Config { }
+
+	client, err := xm.New(endpoint, &config)
 	if err != nil {
 		return 0, err
 	}
