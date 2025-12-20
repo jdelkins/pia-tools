@@ -133,7 +133,7 @@ in
       '';
       type = with types; nullOr path;
       default = null;
-      exmaple = lib.literalExpression ''
+      example = lib.literalExpression ''
         pkgs.writeShellScript "whitelist_ip" '''
           ''${pkgs.nftables}/bin/nft add element inet filter passlist "{ $1 }"
         '''
