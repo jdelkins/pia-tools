@@ -24,10 +24,7 @@ let
     mkEnableOption
     ;
 
-  whitelist-sh = pkgs.writeShellScript "pia-whitelist-${cfg.ifname}.sh" ''
-    ip=$(${pkgs.jq}/bin/jq -r .server_ip <${cacheFile})
-    ${pkgs.nftables}/bin/nft add element ${cfg.whitelistSet} "{$ip}" && echo "Whitelisted $ip"
-  '';
+  getIp = "${pkgs.jq}/bin/jq -r .server_ip <${cacheFile}";
 in
 {
   options.pia-tools = {
@@ -129,11 +126,18 @@ in
       };
     };
 
-    whitelistSet = mkOption {
-      description = "nftables set to which to add the configured server's ip after resetting; null if none.";
-      type = with types; nullOr str;
+    whitelistScript = mkOption {
+      description = ''
+        Script to run when the wireguard endpoint is established, ostensibly to add the ip to a firewall passlist.
+        The script will be called with the ip as the only argument. Set to null to ignore.
+      '';
+      type = with types; nullOr path;
       default = null;
-      example = "inet filter whitelist_4";
+      exampleText = ''
+        pkgs.writeShellScript "whitelist_ip" '''
+          ''${pkgs.nftables}/bin/nft add element inet filter passlist "{ $1 }"
+        '''
+      '';
     };
 
     portForwarding = mkOption {
@@ -223,8 +227,8 @@ in
           "+${pkgs.systemd}/bin/networkctl reconfigure ${cfg.ifname}"
           "+${pkgs.systemd}/bin/networkctl up ${cfg.ifname}"
         ]
-        ++ lib.optionals (cfg.whitelistSet != null) [
-          "+${whitelist-sh}"
+        ++ lib.optionals (cfg.whitelistScript != null) [
+          ''+${pkgs.bash}/bin/bash -c '${cfg.whitelistScript} "$(${getIp})"' ''
         ]
         ++ lib.optionals (cfg.portForwarding) [
           "${pkgs.coreutils}/bin/sleep 10"
@@ -252,8 +256,8 @@ in
         PassEnvironment = "PIA_USERNAME PIA_PASSWORD";
         ExecStart = "${cfg.package}/bin/pia-portforward --cachedir ${cfg.cacheDir} --ifname ${cfg.ifname} --refresh ${cfg.rTorrentParams} ${cfg.transmissionParams}";
       }
-      // lib.attrsets.optionalAttrs (cfg.whitelistSet != null) {
-        ExecStartPost = "+${whitelist-sh}";
+      // lib.attrsets.optionalAttrs (cfg.whitelistScript != null) {
+        ExecStartPost = ''+${pkgs.bash}/bin/bash -c '${cfg.whitelistScript} "$(${getIp})"' '';
       };
     };
     systemd.timers.${cfg.refreshServiceName} =
