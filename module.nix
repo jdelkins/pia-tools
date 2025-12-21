@@ -24,7 +24,7 @@ let
     mkEnableOption
     ;
 
-  getIp = "${pkgs.jq}/bin/jq -r .server_ip <${cacheFile} | ${pkgs.coreutils}/bin/tr -d '\n'";
+  getIp = "${pkgs.jq}/bin/jq -r .server_ip <${cacheFile} | ${pkgs.coreutils}/bin/tr -d '\\n'";
 in
 {
   options.pia-tools = {
