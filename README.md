@@ -86,13 +86,72 @@ if you have a different networking preference.
 | [piawgcli](https://gitlab.com/ddb_db/piawgcli)             | Similar approach, but generates a wireguard-cli configuration file instead of systemd-networkd                                                                          |
 | [Official](https://github.com/pia-foss/manual-connections) | Bash scripts that accomplish a similar goal using plain-jane networking commands, like `ip`, `wg-quick` and so on. Also has a nice list of links to other alternatives. |
 
-## Install Tools
+## NixOS Module
+
+This repo includes a NixOS module to make it easy to configure and deploy
+on that OS. Just include it as an input in your flake, and configure through
+the "pia-tools" option tree. You would probably also want to include the
+systemd-networkd template files (`wg_pia.netdev.tmpl` and `wg_pia.network.tmpl`
+in the example, see the manual install section below) in your flake repo.
+Example follows.
+
+`flake.nix`
+```nix
+inputs = {
+   nixpkgs.url = "...";
+   pia-tools.url = "github:jdelkins/pia-tools";
+};
+
+outputs =
+   { nixpkgs, pia-tools }:
+   {
+      nixosConfigurations.<host> = nixpkgs.lib.nixosSystem rec {
+         system = "...";
+         modules = [
+            pia-tools.nixosModules.${system}.pia-tools
+
+            (
+               { pkgs, ... }:
+               {
+                  pia-tools = {
+                     enable = true;
+                     ifname = "wg_pia";
+                     user = "pia";
+                     group = "pia";
+                     # envFile needs to contain
+                     #   PIA_USERNAME=<pia username>
+                     #   PIA_PASSWORD=<pia password>
+                     # You can put in place by hand, or use something
+                     # like sops-nix to generate it based on encrypted
+                     # secrets stored in the flake repo.
+                     envFile = "/etc/pia-secrets.sh";
+                     whitelistScript = pkgs.writeShellScript "whitelist.sh" ''
+                        ${pkgs.nftables}/bin/nft add element inet filter "{ $1 }"
+                     '';
+                     portForwarding = true;
+                     transmissionParams = "--transmission 192.168.0.80";
+                     netdevTemplateFile = ./wg_pia.netdev.tmpl;
+                     networkTemplateFile = ./wg_pia.network.tmpl;
+                  };
+               }
+            )
+
+            ...
+         ];
+         ...
+      };
+   };
+```
+
+## Manual Install
+
+### Install the tools
 
     go install github.com/jdelkins/pia-tools/cmd/pia-setup-tunnel@latest
     go install github.com/jdelkins/pia-tools/cmd/pia-portforward@latest     # optional
     go install github.com/jdelkins/pia-tools/cmd/pia-listregions@latest     # optional
 
-## Configure Tunnel Interface
+### Configure Tunnel Interface
 
 1. Set up `/etc/systemd/network/<interface>.netdev.tmpl` and `/etc/systemd/network/<interface>.network.tmpl` template
    files. These templates use the Go package
@@ -176,7 +235,7 @@ or weeks, repeat steps 3 and 4 to establish a new tunnel. They are good for
 some period of time, but I recommend replacing it once a week for privacy
 reasons.
 
-## Enabling Port Forwarding
+### Enabling Port Forwarding
 
 If you also want incoming traffic on a single TCP port and a single UDP port
 (both with the same port number) to be forwarded to your VPN endpoint, then
@@ -247,12 +306,12 @@ VPN.
    to an internal webserver running on `192.168.0.80` at port 80. This example assumes your VPN wireguard
    interface is named `pia`.
    
-   **Note ☞** The example above sets up the mechanism for forwarding connections.
-   Assuming you don't run a default-accept firewall (hopefully you don't), then
-   to accually permit such connections, you would also have to also add a rule to accept
-   them, typically somewhere in the `forward` chain in nftables. This is not
-   a lesson in firewall design, so again, you're on your own: the possibilies
-   are numerous once you can get the forwarded port number.
+   **Note ☞** The example above sets up the mechanism for forwarding
+   connections. Assuming you don't run a default-accept firewall (hopefully
+   you don't), then to accually permit such connections, you would also have to
+   also add a rule to accept them, typically somewhere in the `forward` chain in
+   nftables. This is not a lesson in firewall design, so again, you're on your
+   own: the possibilies are numerous once you can get the forwarded port number.
 
 4. Every 15 minutes or so (using systemd timers or similar), run `pia-portforward
    --ifname <interface> --refresh` in order to refresh the port forwarding
@@ -266,8 +325,9 @@ VPN.
 
 ## Troubleshooting
 
-The `pia-listregions` tool attempts to send an "unprivileged" ping via UDP. If this is not permitted by default on your system,
-run the binary as root or else it must be enabled with a sysctl command like the following:
+The `pia-listregions` tool attempts to send an "unprivileged" ping via UDP. If
+this is not permitted by default on your system, run the binary as root or else
+it must be enabled with a sysctl command like the following:
 
     sudo sysctl -w net.ipv4.ping_group_range="0 2147483647"
 
