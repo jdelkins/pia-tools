@@ -9,7 +9,7 @@ Name={{ $if }}
 [Network]
 Address={{ .PeerIp }}/32
 {{- range .DnsServers }}
-DNS={{ . }}%{{ $if }}
+DNS={{ . }}
 {{- end }}
 
 [Route]
