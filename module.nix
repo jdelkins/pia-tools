@@ -12,8 +12,6 @@
 let
   cfg = config.pia-tools;
   cacheFile = "${cfg.cacheDir}/${cfg.ifname}.json";
-  cacheNetdev = "${cfg.cacheDir}/${cfg.ifname}.netdev";
-  cacheNetwork = "${cfg.cacheDir}/${cfg.ifname}.network";
 
   inherit (lib)
     mkOption
@@ -196,8 +194,6 @@ in
       in
       {
         ${cfg.cacheDir} = mk "d" cfg.group;
-        ${cfg.netdevFile} = mk "f" config.users.groups.systemd-network.name;
-        ${cfg.networkFile} = mk "f" config.users.groups.systemd-network.name;
       };
 
     # Tunnel reset service and timer
@@ -206,7 +202,7 @@ in
       name = "${cfg.resetServiceName}.service";
       path = [ cfg.package ];
       serviceConfig = {
-        User = cfg.user;
+        Group = cfg.group;
         Type = "oneshot";
         ReadWritePaths = lib.unique [
           (builtins.dirOf cfg.netdevFile)
@@ -217,18 +213,40 @@ in
         # username and password are passed in via environment variables PIA_USERNAME and PIA_PASSWORD, respectively
         EnvironmentFile = cfg.envFile;
         PassEnvironment = "PIA_USERNAME PIA_PASSWORD";
-        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cachedir ${cfg.cacheDir} --region ${cfg.region} --ifname ${cfg.ifname} --netdev-template "${cfg.netdevTemplateFile}" --netdev "${cacheNetdev}" --network-template "${cfg.networkTemplateFile}" --network "${cacheNetwork}"'';
+        UMask = "0002";
+        CapabilityBoundingSet = [ "CAP_NET_ADMIN" "CAP_CHOWN" ];
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        PrivateTmp = true;
+        PrivateDevices = true;
+        ProtectKernelTunables = true;
+        ProtectKernelModules = true;
+        ProtectKernelLogs = true;
+        ProtectControlGroups = true;
+        NoNewPrivileges = true;
+        RestrictSUIDSGID = true;
+        LockPersonality = true;
+        RemoveIPC = true;
+        ProtectClock = true;
+        ProtectHostname = true;
+        ProtectProc = "invisible";
+        ProcSubset = "pid";
+        RestrictRealtime = true;
+        RestrictNamespaces = true;
+        MemoryDenyWriteExecute = true;
+        SystemCallArchitectures = "native";
+        SystemCallFilter = [ "~@clock" "~@cpu-emulation" "~@debug" "~@module" "~@mount" "~@obsolete" "~@raw-io" "~@reboot" "~@swap" "~@resources" ];
+        RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" "AF_NETLINK" ];
+        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cachedir ${cfg.cacheDir} --region ${cfg.region} --ifname ${cfg.ifname} --netdev-template "${cfg.netdevTemplateFile}" --netdev "${cfg.netdevFile}" --network-template "${cfg.networkTemplateFile}" --network "${cfg.networkFile}"'';
         ExecStartPost = [
-          ''+${pkgs.coreutils}/bin/install -o systemd-network -g systemd-network -m 0440 "${cacheNetdev}" "${cfg.netdevFile}"''
-          ''+${pkgs.coreutils}/bin/install -o root -g root -m 0444 "${cacheNetwork}" "${cfg.networkFile}"''
-          "+-${pkgs.iproute2}/bin/ip link set down dev ${cfg.ifname}"
-          "+-${pkgs.iproute2}/bin/ip link del ${cfg.ifname}"
-          "+${pkgs.systemd}/bin/networkctl reload"
-          "+${pkgs.systemd}/bin/networkctl reconfigure ${cfg.ifname}"
-          "+${pkgs.systemd}/bin/networkctl up ${cfg.ifname}"
+          "-${pkgs.iproute2}/bin/ip link set down dev ${cfg.ifname}"
+          "-${pkgs.iproute2}/bin/ip link del ${cfg.ifname}"
+          "${pkgs.systemd}/bin/networkctl reload"
+          "${pkgs.systemd}/bin/networkctl reconfigure ${cfg.ifname}"
+          "${pkgs.systemd}/bin/networkctl up ${cfg.ifname}"
         ]
         ++ lib.optionals (cfg.whitelistScript != null) [
-          ''+${pkgs.bash}/bin/bash -c '${cfg.whitelistScript} "$(${getIp})"' ''
+          ''${pkgs.bash}/bin/bash -c '${cfg.whitelistScript} "$(${getIp})"' ''
         ]
         ++ lib.optionals (cfg.portForwarding) [
           "${pkgs.coreutils}/bin/sleep 10"
