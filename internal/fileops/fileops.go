@@ -4,16 +4,37 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/user"
 	"path/filepath"
+	"strconv"
+	"syscall"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/jdelkins/pia-tools/internal/pia"
 )
 
-func createFile(path string, perm fs.FileMode) (*os.File, error) {
+func createFile(path string, gid int, perm fs.FileMode) (*os.File, error) {
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
 	if err != nil {
+		return nil, err
+	}
+
+	// get UID of the file
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return nil, err
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		file.Close()
+		return nil, fmt.Errorf("Could not stat file %s", path)
+	}
+
+	err = file.Chown(int(stat.Uid), gid)
+	if err != nil {
+		file.Close()
 		return nil, err
 	}
 
@@ -35,7 +56,17 @@ func CreateNetdevFile(tun *pia.Tunnel, output_path, template_path string) error 
 		return fmt.Errorf("Error parsing template from file %s: %s", template_path, err)
 	}
 
-	file, err := createFile(output_path, 0o640)
+	grp, err := user.LookupGroup("systemd-network")
+	if err != nil {
+		return err
+	}
+
+	gid, err := strconv.Atoi(grp.Gid)
+	if err != nil {
+		return err
+	}
+
+	file, err := createFile(output_path, gid, 0o640)
 	if err != nil {
 		return err
 	}
@@ -54,7 +85,7 @@ func CreateNetworkFile(tun *pia.Tunnel, output_path, template_path string) error
 		return err
 	}
 
-	file, err := createFile(output_path, 0o644)
+	file, err := createFile(output_path, 0, 0o644)
 	if err != nil {
 		return err
 	}
@@ -63,6 +94,5 @@ func CreateNetworkFile(tun *pia.Tunnel, output_path, template_path string) error
 	if err := tmpl.Execute(file, tun); err != nil {
 		return err
 	}
-
 	return nil
 }
