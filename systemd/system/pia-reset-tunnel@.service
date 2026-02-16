@@ -5,9 +5,10 @@ ConditionPathIsDirectory=/var/cache/pia
 ConditionPathExists=/etc/pia.conf
 
 [Service]
+Group=pia
 EnvironmentFile=/etc/pia.conf
 Type=oneshot
-ExecStart=/usr/bin/sudo -u pia /usr/local/bin/pia-setup-tunnel --region $PIA_REGION --ifname %I
+ExecStart=/usr/local/bin/pia-setup-tunnel --region $PIA_REGION --ifname %I
 ExecStartPost=-/usr/bin/ip link set down dev %I
 ExecStartPost=-/usr/bin/ip link del %I
 ExecStartPost=/usr/bin/networkctl reload
@@ -15,3 +16,36 @@ ExecStartPost=/usr/bin/networkctl reconfigure %I
 ExecStartPost=/usr/bin/networkctl up %I
 ExecStartPost=/usr/bin/sleep 10
 ExecStartPost=-/usr/local/bin/pia-portforward --ifname %I $RTORRENT $TRANSMISSION
+
+# Filesystem
+ProtectSystem=strict
+ReadWritePaths=/etc/systemd/network /var/cache/pia
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+
+# Kernel
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+
+# Privileges
+NoNewPrivileges=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RemoveIPC=true
+UMask=0002
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_CHOWN
+
+# Misc
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictRealtime=true
+RestrictNamespaces=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=~@clock @cpu-emulation @debug @module @mount @obsolete @raw-io @reboot @swap @resources
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
