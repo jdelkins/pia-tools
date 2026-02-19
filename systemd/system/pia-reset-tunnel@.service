@@ -8,7 +8,7 @@ ConditionPathExists=/etc/pia.conf
 User=pia
 EnvironmentFile=/etc/pia.conf
 Type=oneshot
-ExecStart=/usr/local/bin/pia-setup-tunnel --netdev-file=group=systemd-network,mode=0440 --network-file=mode=0444 --if-name %I
+ExecStart=+/usr/local/bin/pia-setup-tunnel --netdev-file=group=systemd-network,mode=0440 --network-file=mode=0444 --if-name %I
 ExecStartPost=-/usr/bin/ip link set down dev %I
 ExecStartPost=-/usr/bin/ip link del %I
 ExecStartPost=+/usr/bin/networkctl reload
@@ -36,8 +36,8 @@ RestrictSUIDSGID=true
 LockPersonality=true
 RemoveIPC=true
 UMask=0002
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_CHOWN CAP_FOWNER
-AmbientCapabilities=CAP_NET_ADMIN CAP_CHOWN CAP_FOWNER
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
 
 # Misc
 ProtectClock=true

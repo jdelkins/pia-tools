@@ -229,13 +229,9 @@ in
         UMask = "0002";
         CapabilityBoundingSet = [
           "CAP_NET_ADMIN"
-          "CAP_CHOWN"
-          "CAP_FOWNER"
         ];
         AmbientCapabilities = [
           "CAP_NET_ADMIN"
-          "CAP_CHOWN"
-          "CAP_FOWNER"
         ];
         ProtectSystem = "strict";
         ProtectHome = true;
@@ -275,7 +271,7 @@ in
           "AF_UNIX"
           "AF_NETLINK"
         ];
-        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cache-dir ${cfg.cacheDir} --region ${cfg.region} --if-name ${cfg.ifname} --netdev-file="template=${cfg.netdevTemplateFile},output=${cfg.netdevFile},group=systemd-network,mode=0440" --network-file="template=${cfg.networkTemplateFile},output=${cfg.networkFile},mode=0444"'';
+        ExecStart = ''+${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cache-dir ${cfg.cacheDir} --region ${cfg.region} --if-name ${cfg.ifname} --netdev-file="template=${cfg.netdevTemplateFile},output=${cfg.netdevFile},group=systemd-network,mode=0440" --network-file="template=${cfg.networkTemplateFile},output=${cfg.networkFile},mode=0444"'';
         ExecStartPost = [
           "-${pkgs.iproute2}/bin/ip link set down dev ${cfg.ifname}"
           "-${pkgs.iproute2}/bin/ip link del ${cfg.ifname}"
