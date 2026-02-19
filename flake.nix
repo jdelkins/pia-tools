@@ -12,7 +12,7 @@
     lib.recursiveUpdate
       {
         nixosModules = rec {
-          pia-tools = import ./module.nix { };
+          pia-tools = import ./module.nix;
           default = pia-tools;
         };
       }
