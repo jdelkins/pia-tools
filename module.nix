@@ -33,7 +33,7 @@ in
     package = mkOption {
       description = "The pia-tools package to use";
       type = types.package;
-      default = pkgs.callPackage ./package.nix { };
+      default = pkgs.callPackage ./package.nix { inherit lib; };
     };
 
     user = mkOption {
