@@ -1,7 +1,4 @@
 {
-  pia-tools ? null,
-}:
-{
   config,
   lib,
   pkgs,
@@ -10,7 +7,7 @@
 }:
 
 let
-  cfg = config.pia-tools;
+  cfg = config.services.pia-tools;
   cacheFile = "${cfg.cacheDir}/${cfg.ifname}.json";
 
   inherit (lib)
@@ -23,15 +20,20 @@ let
     ;
 
   getIp = ''${pkgs.jq}/bin/jq -r .server_ip <${cacheFile} | ${pkgs.coreutils}/bin/tr -d \\n'';
+
+  serviceEnvFile = pkgs.writeText "service_params.sh" ''
+    ${lib.optionalString (cfg.transmissionUrl != null) "TRANSMISSION=${cfg.transmissionUrl}"}
+    ${lib.optionalString (cfg.rTorrentUrl != null) "RTORRENT=${cfg.rTorrentUrl}"}
+  '';
 in
 {
-  options.pia-tools = {
+  options.services.pia-tools = {
     enable = mkEnableOption "pia-tools";
 
     package = mkOption {
       description = "The pia-tools package to use";
       type = types.package;
-      default = pia-tools;
+      default = pkgs.callPackage ./package.nix { };
     };
 
     user = mkOption {
@@ -66,18 +68,22 @@ in
       example = "ca_toronto";
     };
 
-    rTorrentParams = mkOption {
-      description = "Additional parameters to pia-setup-tunnel to connect to rTorrent";
-      type = types.str;
-      default = "";
-      example = "--rtorrent https://rtorrent.local";
+    rTorrentUrl = mkOption {
+      description = "URL to rTorrent SCGI endpoint";
+      type = types.nullOr types.str;
+      default = null;
+      example = "https://rtorrent.local";
     };
 
-    transmissionParams = mkOption {
-      description = "Additional parameters to pia-setup-tunnel to connect to Transmission bittorrent server";
-      type = types.str;
-      example = "--transmission 192.168.1.20 --transmission-username $TRANSMISSION_USERNAME --transmission-password $TRANSMISSION_PASSWORD";
-      default = "";
+    transmissionUrl = mkOption {
+      description = ''
+        Transmission RPC endpoint URL. If your transmission server requires
+        a username and password, set them in config.services.pia-tools.envFile, with
+        the variables TRANSMISSION_USERNAME and TRANSMISSION_PASSWORD.
+      '';
+      type = types.nullOr types.str;
+      default = null;
+      example = "http://192.168.100.100:9091/rpc/";
     };
 
     envFile = mkOption {
@@ -89,6 +95,11 @@ in
 
            PIA_USERNAME (required)
            PIA_PASSWORD (required)
+
+        Optional, if needed:
+
+           TRANSMISSION_USERNAME
+           TRANSMISSION_PASSWORD
       '';
       type = types.path;
     };
@@ -202,7 +213,7 @@ in
       name = "${cfg.resetServiceName}.service";
       path = [ cfg.package ];
       serviceConfig = {
-        Group = cfg.group;
+        User = cfg.user;
         Type = "oneshot";
         ReadWritePaths = lib.unique [
           (builtins.dirOf cfg.netdevFile)
@@ -211,10 +222,21 @@ in
         ];
         ReadOnlyPaths = [ "/nix/store" ];
         # username and password are passed in via environment variables PIA_USERNAME and PIA_PASSWORD, respectively
-        EnvironmentFile = cfg.envFile;
-        PassEnvironment = "PIA_USERNAME PIA_PASSWORD";
+        EnvironmentFile = [
+          serviceEnvFile
+          cfg.envFile
+        ];
         UMask = "0002";
-        CapabilityBoundingSet = [ "CAP_NET_ADMIN" "CAP_CHOWN" ];
+        CapabilityBoundingSet = [
+          "CAP_NET_ADMIN"
+          "CAP_CHOWN"
+          "CAP_FOWNER"
+        ];
+        AmbientCapabilities = [
+          "CAP_NET_ADMIN"
+          "CAP_CHOWN"
+          "CAP_FOWNER"
+        ];
         ProtectSystem = "strict";
         ProtectHome = true;
         PrivateTmp = true;
@@ -235,22 +257,38 @@ in
         RestrictNamespaces = true;
         MemoryDenyWriteExecute = true;
         SystemCallArchitectures = "native";
-        SystemCallFilter = [ "~@clock" "~@cpu-emulation" "~@debug" "~@module" "~@mount" "~@obsolete" "~@raw-io" "~@reboot" "~@swap" "~@resources" ];
-        RestrictAddressFamilies = [ "AF_INET" "AF_INET6" "AF_UNIX" "AF_NETLINK" ];
-        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cachedir ${cfg.cacheDir} --region ${cfg.region} --ifname ${cfg.ifname} --netdev-template "${cfg.netdevTemplateFile}" --netdev "${cfg.netdevFile}" --network-template "${cfg.networkTemplateFile}" --network "${cfg.networkFile}"'';
+        SystemCallFilter = [
+          "~@clock"
+          "~@cpu-emulation"
+          "~@debug"
+          "~@module"
+          "~@mount"
+          "~@obsolete"
+          "~@raw-io"
+          "~@reboot"
+          "~@swap"
+          "~@resources"
+        ];
+        RestrictAddressFamilies = [
+          "AF_INET"
+          "AF_INET6"
+          "AF_UNIX"
+          "AF_NETLINK"
+        ];
+        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cachedir ${cfg.cacheDir} --region ${cfg.region} --ifname ${cfg.ifname} --netdev-file="template=${cfg.netdevTemplateFile},output=${cfg.netdevFile},group=systemd-network,mode=0440" --network-file="template=${cfg.networkTemplateFile},output=${cfg.networkFile},mode=0444"'';
         ExecStartPost = [
           "-${pkgs.iproute2}/bin/ip link set down dev ${cfg.ifname}"
           "-${pkgs.iproute2}/bin/ip link del ${cfg.ifname}"
-          "${pkgs.systemd}/bin/networkctl reload"
-          "${pkgs.systemd}/bin/networkctl reconfigure ${cfg.ifname}"
-          "${pkgs.systemd}/bin/networkctl up ${cfg.ifname}"
+          "+${pkgs.systemd}/bin/networkctl reload"
+          "+${pkgs.systemd}/bin/networkctl reconfigure ${cfg.ifname}"
+          "+${pkgs.systemd}/bin/networkctl up ${cfg.ifname}"
         ]
         ++ lib.optionals (cfg.whitelistScript != null) [
           ''${pkgs.bash}/bin/bash -c '${cfg.whitelistScript} "$(${getIp})"' ''
         ]
         ++ lib.optionals (cfg.portForwarding) [
           "${pkgs.coreutils}/bin/sleep 10"
-          "${cfg.package}/bin/pia-portforward --cachedir ${cfg.cacheDir} --ifname ${cfg.ifname} ${cfg.rTorrentParams} ${cfg.transmissionParams}"
+          "-${cfg.package}/bin/pia-portforward --cachedir ${cfg.cacheDir} --ifname ${cfg.ifname}"
         ];
       };
     };
@@ -270,9 +308,11 @@ in
       serviceConfig = {
         User = cfg.user;
         Type = "oneshot";
-        EnvironmentFile = cfg.envFile;
-        PassEnvironment = "PIA_USERNAME PIA_PASSWORD";
-        ExecStart = "${cfg.package}/bin/pia-portforward --cachedir ${cfg.cacheDir} --ifname ${cfg.ifname} --refresh ${cfg.rTorrentParams} ${cfg.transmissionParams}";
+        EnvironmentFile = [
+          serviceEnvFile
+          cfg.envFile
+        ];
+        ExecStart = "${cfg.package}/bin/pia-portforward --cachedir ${cfg.cacheDir} --ifname ${cfg.ifname} --refresh";
       }
       // lib.attrsets.optionalAttrs (cfg.whitelistScript != null) {
         ExecStartPost = ''+${pkgs.bash}/bin/bash -c '${cfg.whitelistScript} "$(${getIp})"' '';

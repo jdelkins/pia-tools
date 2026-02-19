@@ -3,68 +3,63 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 
+	"github.com/alecthomas/kong"
 	"github.com/jdelkins/pia-tools/internal/fileops"
 	"github.com/jdelkins/pia-tools/internal/pia"
-	flag "github.com/spf13/pflag"
 )
 
-var (
-	path_netdev       string
-	path_network      string
-	path_netdev_tmpl  string
-	path_network_tmpl string
-	path_cache        string
-	pia_username      string
-	pia_password      string
-	reg_id            string
-	wg_if             string
-	wg_binary         string
-)
+type CLI struct {
+	IfName   string `short:"i" default:"pia" help:"Name of interface IF; default output/template paths derive from IF under /etc/systemd/network."`
+	Username string `short:"u" env:"PIA_USERNAME" required:"" help:"PIA username (required; may also be set via PIA_USERNAME)."`
+	Password string `short:"p" env:"PIA_PASSWORD" required:"" help:"PIA password (required; may also be set via PIA_PASSWORD)."`
+	Region   string `short:"r" env:"PIA_REGION" default:"auto" help:"PIA region id (or 'auto')."`
+	CacheDir string `short:"c" default:"/var/cache/pia" help:"Path in which to store security-sensitive cache files."`
+	WGBinary string `short:"b" default:"wg" help:"Path to the 'wg' binary from wireguard-tools."`
 
-func init() {
-	const path_sn = "/etc/systemd/network"
-	flag.StringVarP(&wg_if, "ifname", "i", "pia", "name of interface \"IF\", where the systemd-networkd files will be called /etc/systemd/network/IF.{netdev,network}")
-	flag.StringVarP(&pia_username, "username", "u", "", "PIA username (REQUIRED)")
-	flag.StringVarP(&pia_password, "password", "p", "", "PIA password (REQUIRED)")
-	flag.StringVarP(&reg_id, "region", "r", "auto", "PIA region id")
-	flag.StringVarP(&path_netdev, "netdev", "n", "", "Path to generated netdev unit file (see systemd.netdev(5))")
-	flag.StringVarP(&path_network, "network", "N", "", "Path to generated network unit file (see systemd.network(5))")
-	flag.StringVarP(&path_netdev_tmpl, "netdev-template", "t", "", "Path to netdev template unit file (see systemd.netdev(5))")
-	flag.StringVarP(&path_network_tmpl, "network-template", "T", "", "Path to network template unit file (see systemd.network(5))")
-	flag.StringVarP(&path_cache, "cachedir", "c", "/var/cache/pia", "Path in which to store security sensitive cache files")
-	flag.StringVarP(&wg_binary, "wg-binary", "b", "wg", "Path to the 'wg' binary from wireguard-tools")
-	flag.Parse()
-	if pia_username == "" {
-		pia_username = os.Getenv("PIA_USERNAME")
+	// Comma-separated key/value spec parsed into a map by Kong.
+	// Example:
+	//   --netdev-file=output=/etc/systemd/network/pia.netdev,template=/etc/systemd/network/pia.netdev.tmpl,mode=0440,owner=fred,group=systemd-network
+	NetdevFile  map[string]string `name:"netdev-file" mapsep:"," sep:"=" help:"File spec for generating the .netdev file (comma-separated key=value pairs). Keys: output,template,mode,owner,group"`
+	NetworkFile map[string]string `name:"network-file" mapsep:"," sep:"=" help:"File spec for generating the .network file (comma-separated key=value pairs). Keys: output,template,mode,owner,group"`
+}
+
+func (c *CLI) AfterApply(ctx *kong.Context) error {
+	_ = ctx
+	const pathSN = "/etc/systemd/network"
+
+	// Provide sane defaults if the flags are omitted or missing keys.
+	if c.NetdevFile == nil {
+		c.NetdevFile = map[string]string{}
 	}
-	if pia_password == "" {
-		pia_password = os.Getenv("PIA_PASSWORD")
+	if c.NetworkFile == nil {
+		c.NetworkFile = map[string]string{}
 	}
-	if path_netdev == "" {
-		path_netdev = fmt.Sprintf("%s/%s.netdev", path_sn, wg_if)
+
+	if v := c.NetdevFile["output"]; v == "" {
+		c.NetdevFile["output"] = fmt.Sprintf("%s/%s.netdev", pathSN, c.IfName)
 	}
-	if path_network == "" {
-		path_network = fmt.Sprintf("%s/%s.network", path_sn, wg_if)
+	if v := c.NetdevFile["template"]; v == "" {
+		c.NetdevFile["template"] = fmt.Sprintf("%s/%s.netdev.tmpl", pathSN, c.IfName)
 	}
-	if path_netdev_tmpl == "" {
-		path_netdev_tmpl = fmt.Sprintf("%s/%s.netdev.tmpl", path_sn, wg_if)
+
+	if v := c.NetworkFile["output"]; v == "" {
+		c.NetworkFile["output"] = fmt.Sprintf("%s/%s.network", pathSN, c.IfName)
 	}
-	if path_network_tmpl == "" {
-		path_network_tmpl = fmt.Sprintf("%s/%s.network.tmpl", path_sn, wg_if)
+	if v := c.NetworkFile["template"]; v == "" {
+		c.NetworkFile["template"] = fmt.Sprintf("%s/%s.network.tmpl", pathSN, c.IfName)
 	}
-	if pia_username == "" || pia_password == "" {
-		fmt.Fprintf(os.Stderr, "%s: --username and --password are required arguments. Aborting.\n\n", os.Args[0])
-		flag.Usage()
-		os.Exit(1)
-	}
+
+	return nil
 }
 
 func main() {
+	var cli CLI
+	kong.Parse(&cli, kong.Name("pia-setup-tunnel"))
+
 	// Find the "best" reg_id if requested
 	var reg *pia.Region
-	if reg_id == "auto" || reg_id == "" {
+	if cli.Region == "auto" || cli.Region == "" {
 		regions, err := pia.RegionsWithPingTime()
 		if err != nil {
 			log.Panicf("Could not enumerate regions: %v", err)
@@ -85,24 +80,24 @@ func main() {
 	// Get configured region details, if not "auto"
 	if reg == nil {
 		var err error
-		reg, err = pia.FindRegion(reg_id)
+		reg, err = pia.FindRegion(cli.Region)
 		if err != nil {
 			log.Panicf("%v", err)
 		}
 	}
 
 	// Create a Tunnel struct and populate it with fresh WG keys and an access token
-	tun := pia.NewTunnel(reg, wg_if)
+	tun := pia.NewTunnel(reg, cli.IfName)
 	defer func() {
-		if err := tun.SaveCache(path_cache); err != nil {
+		if err := tun.SaveCache(cli.CacheDir); err != nil {
 			log.Panicf("Could not save cache: %v", err)
 		}
 	}()
-	if err := genKeypair(tun, wg_binary); err != nil {
+	if err := genKeypair(tun, cli.WGBinary); err != nil {
 		log.Panicf("Could not generate keypair: %v", err)
 	}
 	if !tun.Token.Valid() {
-		if err := tun.NewToken(pia_username, pia_password); err != nil {
+		if err := tun.NewToken(cli.Username, cli.Password); err != nil {
 			log.Panicf("Could not get token: %v", err)
 		}
 	}
@@ -113,11 +108,15 @@ func main() {
 	}
 
 	// Finally, populate the templates
-	if err := fileops.CreateNetdevFile(tun, path_netdev, path_netdev_tmpl); err != nil {
-		log.Panicf("Could not create %s file: %v", path_netdev, err)
+	if fs, err := fileops.Parse(cli.NetdevFile); err != nil {
+		log.Panicf("Invalid --netdev-file: %v", err)
+	} else if err := fs.Generate(tun); err != nil {
+		log.Panicf("Could not generate netdev file: %v", err)
 	}
-	if err := fileops.CreateNetworkFile(tun, path_network, path_network_tmpl); err != nil {
-		log.Panicf("Could not create %s file: %v", path_network, err)
+	if fs, err := fileops.Parse(cli.NetworkFile); err != nil {
+		log.Panicf("Invalid --network-file: %v", err)
+	} else if err := fs.Generate(tun); err != nil {
+		log.Panicf("Could not generate network file: %v", err)
 	}
 	fmt.Println(tun.Status)
 }

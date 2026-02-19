@@ -5,17 +5,17 @@ ConditionPathIsDirectory=/var/cache/pia
 ConditionPathExists=/etc/pia.conf
 
 [Service]
-Group=pia
+User=pia
 EnvironmentFile=/etc/pia.conf
 Type=oneshot
-ExecStart=/usr/local/bin/pia-setup-tunnel --region $PIA_REGION --ifname %I
+ExecStart=/usr/local/bin/pia-setup-tunnel --netdev-file=group=systemd-network,mode=0440 --network-file=mode=0444 --ifname %I
 ExecStartPost=-/usr/bin/ip link set down dev %I
 ExecStartPost=-/usr/bin/ip link del %I
-ExecStartPost=/usr/bin/networkctl reload
-ExecStartPost=/usr/bin/networkctl reconfigure %I
-ExecStartPost=/usr/bin/networkctl up %I
+ExecStartPost=+/usr/bin/networkctl reload
+ExecStartPost=+/usr/bin/networkctl reconfigure %I
+ExecStartPost=+/usr/bin/networkctl up %I
 ExecStartPost=/usr/bin/sleep 10
-ExecStartPost=-/usr/local/bin/pia-portforward --ifname %I $RTORRENT $TRANSMISSION
+ExecStartPost=-/usr/local/bin/pia-portforward --ifname %I
 
 # Filesystem
 ProtectSystem=strict
@@ -36,7 +36,8 @@ RestrictSUIDSGID=true
 LockPersonality=true
 RemoveIPC=true
 UMask=0002
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_CHOWN
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_CHOWN CAP_FOWNER
+AmbientCapabilities=CAP_NET_ADMIN CAP_CHOWN CAP_FOWNER
 
 # Misc
 ProtectClock=true

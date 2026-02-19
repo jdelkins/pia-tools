@@ -59,7 +59,7 @@ func (tun *Tunnel) NewPFSig() error {
 		return err
 	}
 	if r.Status != "OK" {
-		return fmt.Errorf("Could not get new port forward signature: status=\"%s\" message=\"%s\"", r.Status, r.Message)
+		return fmt.Errorf("could not get new port forward signature: status=\"%s\" message=\"%s\"", r.Status, r.Message)
 	}
 	payload_b, err := base64.StdEncoding.DecodeString(r.Payload)
 	if err != nil {
@@ -97,7 +97,7 @@ func (tun *Tunnel) BindPF() error {
 		return err
 	}
 	if r.Status != "OK" {
-		return fmt.Errorf("Could not bind port forward assignment: status=\"%s\" message=\"%s\"", r.Status, r.Message)
+		return fmt.Errorf("could not bind port forward assignment: status=\"%s\" message=\"%s\"", r.Status, r.Message)
 	}
 	tun.Status = r.Status
 	tun.Message = r.Message

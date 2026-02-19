@@ -68,10 +68,9 @@ Assumes:
 
 7. If you don't wish to use the port forwarding setup, then you don't need
    `pia-pf-refresh@.timer`. In this case, you might also want to also edit
-   `pia-reset-tunnel@.service` (e.g. `systemctl edit pia-tunnel-reset@wgpia0.service`)
-   since it also reconfigures the forwarded port after the new tunnel comes
-   back up. If you don't install the `pia-portfward` binary, the port
-   forwarding configuration will fail harmlessly.
+   `pia-reset-tunnel@.service` since it also reconfigures the forwarded port
+   after the new tunnel comes back up. If you don't install the `pia-portfward`
+   binary, the port forwarding configuration will fail harmlessly.
 
 8. If you want to get your tunnel up now, run the reset service by hand as
    follows. This service first tears down the existing configuration (as it is

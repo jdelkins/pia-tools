@@ -95,6 +95,26 @@ systemd-networkd template files (`wg_pia.netdev.tmpl` and `wg_pia.network.tmpl`
 in the example, see the manual install section below) in your flake repo.
 Example follows.
 
+This example is not likely to be usable by you directly. These are complex
+networking topics, and it is dangerous to rely on examples for your production
+set-up. Do your homework and make sure you have a correct and safe firewall
+configuration.
+
+In this example, we are configuring a firewall host, with a single lan
+interface. pia-tools gets configured to establish a VPN tunnel called wg_pia,
+and assumes we use systemd-networkd templates similar to those in the repo,
+which set up a default route through the tunnel. We have a transmission server
+running on the lan at 192.168.100.100, and we want to forward UDP ports to it
+from the VPN. All outgoing ipv4 traffic from the lan is allowed out through the
+VPN, from transmission or any other host on the lan that uses this firewall as
+it's router. The tunnel gets torn down and remade with a new virtual IP every
+day at 5:15 AM.
+
+Note that, theoretically, there is no reason this firewall has to be exposed on
+your WAN, it could, for example, be in a DMZ behind your wan router, with only
+certain lan clients configured (manually or via DHCP) to use its lan address as
+its default route. It just needs WAN egress in order to establish the tunnel.
+
 `flake.nix`
 ```nix
 inputs = {
@@ -103,44 +123,133 @@ inputs = {
 };
 
 outputs =
-   { nixpkgs, pia-tools }:
-   {
-      nixosConfigurations.<host> = nixpkgs.lib.nixosSystem rec {
-         system = "...";
-         modules = [
-            pia-tools.nixosModules.${system}.pia-tools
+  { nixpkgs, pia-tools }:
+  {
+     nixosConfigurations.<host> = nixpkgs.lib.nixosSystem rec {
+       system = "...";
+       modules = [
+         pia-tools.nixosModules.pia-tools
+         (
+           { pkgs, ... }:
+           let
+             wgIf = "wg_pia";
+             lanIf = "lan";
+             transmissionIp = "192.168.100.100";
+             netdevTemplate = pkgs.writeText "wg_pia.netdev.tmpl" ''
+               [NetDev]
+               Name={{ .Interface }}
+               Kind=wireguard
 
-            (
-               { pkgs, ... }:
-               {
-                  pia-tools = {
-                     enable = true;
-                     ifname = "wg_pia";
-                     user = "pia";
-                     group = "pia";
-                     # envFile needs to contain
-                     #   PIA_USERNAME=<pia username>
-                     #   PIA_PASSWORD=<pia password>
-                     # You can put in place by hand, or use something
-                     # like sops-nix to generate it based on encrypted
-                     # secrets stored in the flake repo.
-                     envFile = "/etc/pia-secrets.sh";
-                     whitelistScript = pkgs.writeShellScript "whitelist.sh" ''
-                        ${pkgs.nftables}/bin/nft add element inet filter "{ $1 }"
-                     '';
-                     portForwarding = true;
-                     transmissionParams = "--transmission 192.168.0.80";
-                     netdevTemplateFile = ./wg_pia.netdev.tmpl;
-                     networkTemplateFile = ./wg_pia.network.tmpl;
-                  };
-               }
-            )
+               [WireGuard]
+               PrivateKey={{ .PrivateKey }}
 
-            ...
-         ];
+               [WireGuardPeer]
+               Endpoint={{ .ServerIp }}:{{ .ServerPort }}
+               PublicKey={{ .ServerPubkey }}
+               AllowedIPs=0.0.0.0/0
+               PersistentKeepalive=25
+             '';
+             networkTemplate = pkgs.writeText "${wgIf}.network.tmpl" ''
+               [Match]
+               Name={{ .Interface }}
+
+               [Network]
+               Address={{ .PeerIp }}/32
+               {{- range .DnsServers }}
+               DNS={{ . }}
+               {{- end }}
+
+               [Route]
+               Destination={{ .ServerVip }}/32
+               Scope=link
+
+               {{ range .DnsServers -}}
+               [Route]
+               Destination={{ . }}/32
+               Gateway={{ $.ServerVip }}
+               GatewayOnLink=true
+
+               {{ end -}}
+
+               [Route]
+               Destination=0.0.0.0/0
+               Gateway={{ .ServerVip }}
+               GatewayOnLink=true
+               Scope=global
+               Table=vpn
+             '';
+           in
+           {
+              services.pia-tools = {
+                 enable = true;
+                 ifname = wgIf;
+                 # defaults are fine
+                 #user = "pia";
+                 #group = "pia";
+                 # envFile needs to contain
+                 #   PIA_USERNAME=<pia username>
+                 #   PIA_PASSWORD=<pia password>
+                 # and, if needed:
+                 #   TRANSMISSION_USERNAME=<transmission username>
+                 #   TRANSMISSION_PASSWORD=<transmission password>
+                 # You can put in place by hand, or use something
+                 # like sops-nix to generate it based on encrypted
+                 # secrets stored in the flake repo.
+                 envFile = "/etc/pia-secrets.sh";
+                 # Optional script, run as root, after the tunnel is established and
+                 # after each port forward refresh. Ostensibly for adding the pia server
+                 # to a firewall whitelist set
+                 whitelistScript = pkgs.writeShellScript "whitelist.sh" ''
+                    ${pkgs.nftables}/bin/nft add element inet filter passlist "{ $1 }"
+                 '';
+                 # If true, request and maintain a port forwarding
+                 # assignment after successfully establishing a tunnel.
+                 portForwarding = true;
+                 # RPC endpoint of transmission server. Usually the web
+                 # endpoint with /rpc/ added at the end.
+                 # Ignored unless portForwarding = true
+                 transmissionUrl = "http://${transmissionIp}:9091/rpc/";
+                 # rotate the tunnel daily at 5:15 am
+                 resetTimerConfig.OnCalendar = "*-*-* 05:15:00";
+                 # Your templates. Best practice would be to include them in
+                 # the flake repo and refer to them from the nix store, like this
+                 netdevTemplateFile = netdevTemplate;
+                 networkTemplateFile = networkTemplate;
+              };
+              # minimal firewall configuration. Start with the NixOS firewall module
+              boot.kernel.sysctl."net.ipv4.ip_forward" = 1;
+              networking.firewall.enable = true;
+              networking.nftables.enable = true;
+              # masquerading and DNAT. This presumes the wireguard interface is set as
+              # the default route for this firewall, which would be established in the
+              # ".network" file generated above.
+              networking.nat = {
+                enable = true;
+                externalInterface = wgIf;
+                internalInterfaces = [ lanIf ];
+                forwardPorts = [
+                  {
+                    proto = "udp";
+                    sourcePort = "10000:65535";
+                    destination = "${transmissionIp}:10000-65535";
+                  }
+                ];
+              }
+              # Allow LAN clients (incl. Transmission host) to egress out the VPN.
+              # Allow UDP traffic from the VPN link to transmission.
+              # networking.nat only sets up the NAT rules, we have to explicitly allow the traffic.
+              networking.firewall.extraForwardRules = ''
+                iifname "${lanIf}" oifname "${wgIf}" accept
+                iifname "${wgIf}" oifname "${lanIf}" ct state { established, related } accept
+                iifname "${wgIf}" oifname "${lanIf}" ip daddr ${transmissionIp} udp dport 10000-65535 accept
+              '';
+           }
+         )
          ...
-      };
-   };
+       ];
+       ...
+     };
+  };
 ```
 
 ## Manual Install
@@ -322,6 +431,192 @@ VPN.
    I think most reasonable failure cases (e.g. your ISP goes down for a
    few hours, so you can't refresh) should be fine, but you definitely want
    to keep refreshing the assignment as long as you're intending to use it.
+
+## CLI Usage
+
+Although it is recommended to run these tools with the help of systemd timers,
+the tools are perfectly valid to use via their cli interface. The pia-tools
+repository provides two primary command-line utilities:
+
+- `pia-setup-tunnel`
+- `pia-portforward`
+
+These are designed to work together for configuring and maintaining a PIA
+WireGuard tunnel and optional port forwarding.
+
+Additionallly, `pia-listregions`, which accepts no flags or other configuration,
+simply downloads and lists the available regions as discussed above.
+
+### pia-setup-tunnel
+
+#### Description
+
+`pia-setup-tunnel` creates or updates a WireGuard tunnel using the PIA API, writes
+the corresponding systemd-networkd .netdev and .network files. The systemd
+unit would invoke the utility, and then set up the interface for use. It is
+typically, therefore, invoked from a systemd unit but may also be run manually.
+
+The command:
+
+- Authenticates to PIA using your username and password
+- Selects a region
+- Generates WireGuard keys and retrieves endpoint configuration
+- Writes systemd-networkd configuration files
+
+#### Required Inputs
+
+Only the credential parameters are essential; defaults are provided for
+everything else. Credentials may be provided via flags or environment variables:
+
+| Parameter    | Environment Variable | Meaning              |
+|--------------|----------------------|----------------------|
+| `--username` | PIA_USERNAME         | PIA account username |
+| `--password` | PIA_PASSWORD         | PIA account password |
+
+#### Flags
+
+| flag                         | env var      | default          | meaning                                                                 |
+|------------------------------|--------------|------------------|-------------------------------------------------------------------------|
+| `--region string`            | PIA_REGION   | `auto`           | PIA region identifier (e.g., us_chicago, us_texas)                      |
+| `--username string`          | PIA_USERNAME | _required_       | PIA account username                                                    |
+| `--password string`          | PIA_PASSWORD | _required_       | PIA account password                                                    |
+| `--ifname string`            | _n/a_        | `pia`            | Interface name to create or reconfigure (e.g., v4, wg0)                 |
+| `--netdev-file key=value,…`  | _n/a_        | _see below_      | Write a .netdev file using a key/value specification                    |
+| `--network-file key=value,…` | _n/a_        | _see below_      | Write a .network file using a key/value specification                   |
+| `--cache-dir`                | _n/a_        | `/var/cache/pia` | directory in which to save a json file with the tunnel parameters.      |
+| `--wg-binary`                | _n/a_        | `wg`             | path to the `wg` binary from wireguard-tools (look in $PATH by default) |
+
+#### File Specification Format
+
+Both `--netdev-file` and `--network-file` accept a comma-separated list
+of key=value pairs. All of the keys are optional and will use defaults as
+indicated.
+
+| key         | default                                                            | meaning                                    |
+|-------------|--------------------------------------------------------------------|--------------------------------------------|
+| `output=`   | `/etc/systemd/network/<ifname>.{network,netdev}`                   | Path at which to save the generated file.  |
+| `template=` | `/etc/systemd/network/<ifname>.{network,netdev}.tmpl`              | Path of the source template for this file. |
+| `owner=`    | _invoking user_                                                    | The owner account name for the file.       |
+| `group=`    | _invoking group_                                                   | The group name for the file.               |
+| `mode=`     | _runtime default from the environment (usually: 0666 nand $UMASK)_ | The file mode in octal (e.g. 0440)         |
+
+Example:
+
+`--netdev-file=output=/etc/systemd/network/pia.netdev,template=/etc/systemd/network/pia.netdev.tmpl,mode=0440,group=systemd-network`
+
+#### Example Usage
+
+_Minimal example using environment variables._ This will generate
+`/etc/systemd/network/pia.net{dev,work}` files using the templates
+`/etc/systemd/network/pia.net{dev,work}.tmpl`. If the template files are not
+found, you'll get an error. If run as non-root, the command will also fail, as
+root is required to write the files to this system directory and to change the
+group of the netdev file, as specified in this examnple. Note that, generally,
+systemd-networkd will require read permission on netdev files and will fail if
+the files are world-readable, for security reasons.
+
+```sh
+export PIA_USERNAME=youruser
+export PIA_PASSWORD=yourpass
+export PIA_REGION=us_chicago
+
+pia-setup-tunnel --netdev-file=group=systemd-network,mode=0440
+```
+
+_Full explicit example._ This will do the same as the above, without relying (as
+much) on the defaults.
+
+```sh
+pia-setup-tunnel \
+  --username youruser \
+  --password yourpass \
+  --region us_chicago \
+  --ifname pia \
+  --netdev-file=output=/etc/systemd/network/pia.netdev,template=/etc/systemd/network/pia.netdev.tmpl,owner=root,group=systemd-network,mode=0440 \
+  --network-file=output=/etc/systemd/network/pia.network,template=/etc/systemd/network/pia.network.tmpl,mode=0444
+```
+
+### pia-portforward
+
+#### Description
+
+`pia-portforward` requests and maintains a forwarded port from the active
+PIA tunnel. It retrieves the assigned port and optionally updates downstream
+services such as rTorrent or Transmission.
+
+This command must be executed after the tunnel is active.
+
+#### Key Flags
+
+| flag                             | env var               | default | meaning                                                                  |
+|----------------------------------|-----------------------|---------|--------------------------------------------------------------------------|
+| `--username string`              | PIA_USERNAME          | _none_  | Used to get a new authentication token, if expired.                      |
+| `--password string`              | PIA_PASSWORD          | _none_  | ibid                                                                     |
+| `--ifname string`                | _n/a_                 | `pia`   | Interface name associated with the active PIA tunnel                     |
+| `--rtorrent string`              | RTORRENT              | _none_  | rTorrent SCGI endpoint (e.g., 127.0.0.1:5000)                            |
+| `--transmission string`          | TRANSMISSION          | _none_  | Transmission RPC endpoint (e.g., http://localhost:9091/transmission/rpc) |
+| `--transmission-username string` | TRANSMISSION_USERNAME | _none_  | Transmission RPC username (if required)                                  |
+| `--transmission-password string` | TRANSMISSION_PASSWORD | _none_  | Transmission RPC password (if required)                                  |
+| `--refresh`                      | _n/a_                 | _n/a_   | Don't get a new port forwarding assignment, just refresh the active one  |
+
+#### Example Usage
+
+_Basic port forward retrieval._ Will obtain a forwarding port, store it in the
+cache file, but do nothing further with it.
+
+```sh
+pia-portforward --ifname pia
+```
+
+_Update rTorrent with the forwarded port._ This will obtain a forwarding port
+and communicate it to an rtorrent instance running locally on the router. If a
+forwarding port is already active, this will grab a new (and likely different)
+port.
+
+```sh
+pia-portforward \
+  --ifname pia \
+  --rtorrent http://127.0.0.1:5000
+```
+
+_Update Transmission with authentication._ This will obtain a forwarding port
+and communicate it to a transmission instance running at ip 192.168.77.77. This
+example uses environment variables for the transmission related parameters, but
+you could also use cli flags. Uses the cached PIA token: if you just set up the
+tunnel successfully, you shouldn't need the PIA username/password; the cached
+token should still be valid. You can provide the PIA credentials if you want to
+be sure.
+
+```sh
+export TRANSMISISON=http://192.168.77.77:9091/transmission/rpc
+export TRANSMISSION_USERNAME=user
+export TRANSMISSION_PASSWORD=pass
+
+pia-portforward --ifname pia
+```
+
+_Refresh Port Forwarding Assignment._ For reasons of practicality, this should
+be called from a systemd timer or cron, but works fine from the cli too, if you
+can remember to do so every 15 minutes. Supply credentials, as the cached token
+has a finite valid lifetime; with the username and password, we can grab a new
+one if necessary.
+
+```sh
+export PIA_USERNAME=user
+export PIA_PASSWORD=pass
+
+pia-portforward --ifname pia --refresh
+```
+
+#### Typical Workflow
+
+1. Run pia-setup-tunnel to (re-)configure the WireGuard interface files.
+2. Bring the interface up using systemd-networkd.
+3. Run pia-portforward to retrieve and apply the forwarded port to downstream services.
+4. Schedule pia-portforward periodically to renew the port forwarding lease.
+
+Both commands are designed to be automation-friendly and safe for use within
+systemd units.
 
 ## Troubleshooting
 

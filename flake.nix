@@ -21,29 +21,12 @@
           system:
           let
             pkgs = nixpkgs.legacyPackages.${system};
-
-            pkg = pkgs.buildGoModule {
-              pname = "pia-tools";
-              version = "1.3.0";
-              src = ./.;
-              vendorHash = "sha256-QJ5KOZ/SLfOk6A/vQR4RK7OsNGbwB8nxC37YCz3Xy+w=";
-              meta = {
-                description = "Toolset to manage wireguard tunnels to privateinternetaccess.com";
-                homepage = "https://github.com/jdelkins/pia-tools";
-                license = lib.licenses.mit;
-              };
-            };
-
-            module = import ./module.nix { pia-tools = pkg; };
+            pkg = pkgs.callPackage ./package.nix { };
           in
           {
             packages = {
               pia-tools = pkg;
               default = pkg;
-            };
-            nixosModules = {
-              pia-tools = module;
-              default = module;
             };
             devShells = {
               default = pkgs.mkShell {
