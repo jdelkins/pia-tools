@@ -8,4 +8,4 @@ ConditionPathExists=/etc/pia.conf
 User=pia
 EnvironmentFile=/etc/pia.conf
 Type=oneshot
-ExecStart=/usr/local/bin/pia-portforward --ifname %I --refresh
+ExecStart=/usr/local/bin/pia-portforward --if-name %I --refresh

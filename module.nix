@@ -275,7 +275,7 @@ in
           "AF_UNIX"
           "AF_NETLINK"
         ];
-        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cache-dir ${cfg.cacheDir} --region ${cfg.region} --ifname ${cfg.ifname} --netdev-file="template=${cfg.netdevTemplateFile},output=${cfg.netdevFile},group=systemd-network,mode=0440" --network-file="template=${cfg.networkTemplateFile},output=${cfg.networkFile},mode=0444"'';
+        ExecStart = ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cache-dir ${cfg.cacheDir} --region ${cfg.region} --if-name ${cfg.ifname} --netdev-file="template=${cfg.netdevTemplateFile},output=${cfg.netdevFile},group=systemd-network,mode=0440" --network-file="template=${cfg.networkTemplateFile},output=${cfg.networkFile},mode=0444"'';
         ExecStartPost = [
           "-${pkgs.iproute2}/bin/ip link set down dev ${cfg.ifname}"
           "-${pkgs.iproute2}/bin/ip link del ${cfg.ifname}"
@@ -288,7 +288,7 @@ in
         ]
         ++ lib.optionals (cfg.portForwarding) [
           "${pkgs.coreutils}/bin/sleep 10"
-          "-${cfg.package}/bin/pia-portforward --cachedir ${cfg.cacheDir} --ifname ${cfg.ifname}"
+          "-${cfg.package}/bin/pia-portforward --cache-dir ${cfg.cacheDir} --if-name ${cfg.ifname}"
         ];
       };
     };
@@ -312,7 +312,7 @@ in
           serviceEnvFile
           cfg.envFile
         ];
-        ExecStart = "${cfg.package}/bin/pia-portforward --cachedir ${cfg.cacheDir} --ifname ${cfg.ifname} --refresh";
+        ExecStart = "${cfg.package}/bin/pia-portforward --cache-dir ${cfg.cacheDir} --if-name ${cfg.ifname} --refresh";
       }
       // lib.attrsets.optionalAttrs (cfg.whitelistScript != null) {
         ExecStartPost = ''+${pkgs.bash}/bin/bash -c '${cfg.whitelistScript} "$(${getIp})"' '';

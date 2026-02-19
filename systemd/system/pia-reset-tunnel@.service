@@ -8,14 +8,14 @@ ConditionPathExists=/etc/pia.conf
 User=pia
 EnvironmentFile=/etc/pia.conf
 Type=oneshot
-ExecStart=/usr/local/bin/pia-setup-tunnel --netdev-file=group=systemd-network,mode=0440 --network-file=mode=0444 --ifname %I
+ExecStart=/usr/local/bin/pia-setup-tunnel --netdev-file=group=systemd-network,mode=0440 --network-file=mode=0444 --if-name %I
 ExecStartPost=-/usr/bin/ip link set down dev %I
 ExecStartPost=-/usr/bin/ip link del %I
 ExecStartPost=+/usr/bin/networkctl reload
 ExecStartPost=+/usr/bin/networkctl reconfigure %I
 ExecStartPost=+/usr/bin/networkctl up %I
 ExecStartPost=/usr/bin/sleep 10
-ExecStartPost=-/usr/local/bin/pia-portforward --ifname %I
+ExecStartPost=-/usr/local/bin/pia-portforward --if-name %I
 
 # Filesystem
 ProtectSystem=strict
