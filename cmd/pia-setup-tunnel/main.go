@@ -10,11 +10,11 @@ import (
 )
 
 type CLI struct {
-	IfName   string `short:"i" default:"pia" help:"Name of interface IF; default output/template paths derive from IF under /etc/systemd/network."`
+	IfName   string `short:"i" aliases:"ifname" default:"pia" help:"Name of interface IF; default output/template paths derive from IF under /etc/systemd/network."`
 	Username string `short:"u" env:"PIA_USERNAME" required:"" help:"PIA username (required; may also be set via PIA_USERNAME)."`
 	Password string `short:"p" env:"PIA_PASSWORD" required:"" help:"PIA password (required; may also be set via PIA_PASSWORD)."`
 	Region   string `short:"r" env:"PIA_REGION" default:"auto" help:"PIA region id (or 'auto')."`
-	CacheDir string `short:"c" default:"/var/cache/pia" help:"Path in which to store security-sensitive cache files."`
+	CacheDir string `short:"c" aliases:"cachedir" default:"/var/cache/pia" help:"Path in which to store security-sensitive cache files."`
 	WGBinary string `short:"b" default:"wg" help:"Path to the 'wg' binary from wireguard-tools."`
 
 	// Comma-separated key/value spec parsed into a map by Kong.

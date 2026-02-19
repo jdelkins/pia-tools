@@ -11,7 +11,7 @@ import (
 )
 
 type CLI struct {
-	IfName   string `short:"i" name:"ifname" default:"pia" help:"Name of WireGuard interface, used to determine cache filename."`
+	IfName   string `short:"i" aliases:"ifname" default:"pia" help:"Name of WireGuard interface, used to determine cache filename."`
 	Username string `short:"u" name:"username" env:"PIA_USERNAME" help:"PIA username (required if token expired)."`
 	Password string `short:"p" name:"password" env:"PIA_PASSWORD" help:"PIA password (required if token expired)."`
 
@@ -22,7 +22,7 @@ type CLI struct {
 	TransUser     string `name:"transmission-username" env:"TRANSMISSION_USERNAME" help:"Transmission server username."`
 	TransPassword string `name:"transmission-password" env:"TRANSMISSION_PASSWORD" help:"Transmission server password."`
 
-	CacheDir string `short:"c" name:"cachedir" default:"/var/cache/pia" help:"Directory in which to store security-sensitive cache files."`
+	CacheDir string `short:"c" aliases:"cachedir" default:"/var/cache/pia" help:"Directory in which to store security-sensitive cache files."`
 }
 
 func main() {
