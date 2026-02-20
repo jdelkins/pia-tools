@@ -10,12 +10,13 @@ import (
 )
 
 type CLI struct {
-	IfName   string `short:"i" aliases:"ifname" default:"pia" help:"Name of interface IF; default output/template paths derive from IF under /etc/systemd/network."`
-	Username string `short:"u" env:"PIA_USERNAME" required:"" help:"PIA username (required; may also be set via PIA_USERNAME)."`
-	Password string `short:"p" env:"PIA_PASSWORD" required:"" help:"PIA password (required; may also be set via PIA_PASSWORD)."`
-	Region   string `short:"r" env:"PIA_REGION" default:"auto" help:"PIA region id (or 'auto')."`
-	CacheDir string `short:"c" aliases:"cachedir" default:"/var/cache/pia" help:"Path in which to store security-sensitive cache files."`
-	WGBinary string `short:"b" default:"wg" help:"Path to the 'wg' binary from wireguard-tools."`
+	IfName    string `short:"i" aliases:"ifname" default:"pia" help:"Name of interface IF; default output/template paths derive from IF under /etc/systemd/network."`
+	Username  string `short:"u" env:"PIA_USERNAME" required:"" help:"PIA username (required; may also be set via PIA_USERNAME)."`
+	Password  string `short:"p" env:"PIA_PASSWORD" required:"" help:"PIA password (required; may also be set via PIA_PASSWORD)."`
+	Region    string `short:"r" env:"PIA_REGION" default:"auto" help:"PIA region id (or 'auto')."`
+	CacheDir  string `short:"c" aliases:"cachedir" default:"/var/cache/pia" help:"Path in which to store security-sensitive cache files."`
+	WGBinary  string `short:"b" default:"wg" help:"Path to the 'wg' binary from wireguard-tools."`
+	FromCache bool   `aliases:"cached" help:"Generate systemd-networkd files from the cached tunnel info."`
 
 	// Comma-separated key/value spec parsed into a map by Kong.
 	// Example:
@@ -53,9 +54,33 @@ func (c *CLI) AfterApply(ctx *kong.Context) error {
 	return nil
 }
 
+func writeFiles(cli *CLI, tun *pia.Tunnel) {
+	if fs, err := fileops.Parse(cli.NetdevFile); err != nil {
+		log.Panicf("Invalid --netdev-file: %v", err)
+	} else if err := fs.Generate(tun); err != nil {
+		log.Panicf("Could not generate netdev file: %v", err)
+	}
+	if fs, err := fileops.Parse(cli.NetworkFile); err != nil {
+		log.Panicf("Invalid --network-file: %v", err)
+	} else if err := fs.Generate(tun); err != nil {
+		log.Panicf("Could not generate network file: %v", err)
+	}
+}
+
 func main() {
 	var cli CLI
 	kong.Parse(&cli, kong.Name("pia-setup-tunnel"))
+
+	// If directed to use cached info, just read the cache and write the files
+	if cli.FromCache {
+		// grab the cached tunnel info
+		tun, err := pia.ReadCache(cli.CacheDir, cli.IfName)
+		if err != nil {
+			log.Panicf("Could not read cache: %v", err)
+		}
+		writeFiles(&cli, tun)
+		return
+	}
 
 	// Find the "best" reg_id if requested
 	var reg *pia.Region
@@ -108,15 +133,7 @@ func main() {
 	}
 
 	// Finally, populate the templates
-	if fs, err := fileops.Parse(cli.NetdevFile); err != nil {
-		log.Panicf("Invalid --netdev-file: %v", err)
-	} else if err := fs.Generate(tun); err != nil {
-		log.Panicf("Could not generate netdev file: %v", err)
-	}
-	if fs, err := fileops.Parse(cli.NetworkFile); err != nil {
-		log.Panicf("Invalid --network-file: %v", err)
-	} else if err := fs.Generate(tun); err != nil {
-		log.Panicf("Could not generate network file: %v", err)
-	}
+	writeFiles(&cli, tun)
+
 	fmt.Println(tun.Status)
 }
