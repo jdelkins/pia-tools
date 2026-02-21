@@ -537,6 +537,21 @@ pia-setup-tunnel \
   --network-file=output=/etc/systemd/network/pia.network,template=/etc/systemd/network/pia.network.tmpl,mode=0444
 ```
 
+#### Activating the tunnel
+
+The example systemd service takes some extra steps after running `pia-setup-tunnel`
+to activate the tunnel link. If you are running it on the cli, you may wish
+to follow up with these steps, otherwise the tunnel will have been reconfigured,
+but the changes not activated.
+
+```sh
+ip link set down dev '<ifname>' || true
+ip link del '<ifname>' || true
+networkctl reload
+networkctl reconfigure '<ifname>'
+networkctl up '<ifname>'
+```
+
 ### pia-portforward
 
 #### Description
