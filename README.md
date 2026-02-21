@@ -64,7 +64,7 @@ on their firewall.[^2]
 [PIA][] also has a dynamic port forwarding feature that allows you to run
 a server on or behind your VPN endpoint. This suite can help you with that.
 
-Because of the dynamic nature of your enpoint public and virtual IP addresses,
+Because of the dynamic nature of your endpoint public and virtual IP addresses,
 Wireguard keys, and forwarded ipv4 port, it requires some tooling to set up.
 Read on for how.
 
@@ -329,7 +329,7 @@ outputs =
    wireguard private keys. These files do not store your [PIA][] username or
    password, but should still be treated as private.
 
-3. Run `pia-setup-tunnel --username <user> --password <pass> --ifname <interface>`
+3. Run `pia-setup-tunnel --username <user> --password <pass> --if-name <interface>`
    as root to create the `.network` and `.netdev` files corresponding to the
    templates created above.
 
@@ -377,8 +377,8 @@ VPN.
    simple to add.)
 
    If you are running [rtorrent][] or [transmission][] as the server behind the
-   gateway, run, respectively, `pia-portforward --ifname <interface> --rtorrent
-   http://<rtorrent-ip>:<rtorrent-port>` or `pia-portforward --ifname
+   gateway, run, respectively, `pia-portforward --if-name <interface> --rtorrent
+   http://<rtorrent-ip>:<rtorrent-port>` or `pia-portforward --if-name
    <interface> --transmission <transmission-ip>`. This will request a forwarding
    port from [PIA][], activate it, and then inform [rtorrent][] or
    [transmission][], respectively, about the port.
@@ -423,7 +423,7 @@ VPN.
    own: the possibilies are numerous once you can get the forwarded port number.
 
 4. Every 15 minutes or so (using systemd timers or similar), run `pia-portforward
-   --ifname <interface> --refresh` in order to refresh the port forwarding
+   --if-name <interface> --refresh` in order to refresh the port forwarding
    assignment using your cached authentication token. If you don't do this,
    PIA will eventually reclaim the port for another customer, and traffic
    meant for you could be delivered somewhere else! You don't want that.
@@ -475,16 +475,17 @@ everything else. Credentials may be provided via flags or environment variables:
 
 #### Flags
 
-| flag                         | env var      | default          | meaning                                                                 |
-|------------------------------|--------------|------------------|-------------------------------------------------------------------------|
-| `--region string`            | PIA_REGION   | `auto`           | PIA region identifier (e.g., us_chicago, us_texas)                      |
-| `--username string`          | PIA_USERNAME | _required_       | PIA account username                                                    |
-| `--password string`          | PIA_PASSWORD | _required_       | PIA account password                                                    |
-| `--ifname string`            | _n/a_        | `pia`            | Interface name to create or reconfigure (e.g., v4, wg0)                 |
-| `--netdev-file key=value,…`  | _n/a_        | _see below_      | Write a .netdev file using a key/value specification                    |
-| `--network-file key=value,…` | _n/a_        | _see below_      | Write a .network file using a key/value specification                   |
-| `--cache-dir`                | _n/a_        | `/var/cache/pia` | directory in which to save a json file with the tunnel parameters.      |
-| `--wg-binary`                | _n/a_        | `wg`             | path to the `wg` binary from wireguard-tools (look in $PATH by default) |
+| flag                         | env var      | default          | meaning                                                                                         |
+|------------------------------|--------------|------------------|-------------------------------------------------------------------------------------------------|
+| `--region string`            | PIA_REGION   | `auto`           | PIA region identifier (e.g., us_chicago, us_texas)                                              |
+| `--username string`          | PIA_USERNAME | _required_       | PIA account username                                                                            |
+| `--password string`          | PIA_PASSWORD | _required_       | PIA account password                                                                            |
+| `--if-name string`           | _n/a_        | `pia`            | Interface name to create or reconfigure (e.g., v4, wg0)                                         |
+| `--netdev-file key=value,…`  | _n/a_        | _see below_      | Write a .netdev file using a key/value specification                                            |
+| `--network-file key=value,…` | _n/a_        | _see below_      | Write a .network file using a key/value specification                                           |
+| `--cache-dir`                | _n/a_        | `/var/cache/pia` | directory in which to save a json file with the tunnel parameters.                              |
+| `--wg-binary`                | _n/a_        | `wg`             | path to the `wg` binary from wireguard-tools (look in $PATH by default)                         |
+| `--from-cache`               | _n/a_        | _unset_          | Skip accessing PIA's api, and just (re-)generate the networkd files. Useful to debug templates. |
 
 #### File Specification Format
 
@@ -531,7 +532,7 @@ pia-setup-tunnel \
   --username youruser \
   --password yourpass \
   --region us_chicago \
-  --ifname pia \
+  --if-name pia \
   --netdev-file=output=/etc/systemd/network/pia.netdev,template=/etc/systemd/network/pia.netdev.tmpl,owner=root,group=systemd-network,mode=0440 \
   --network-file=output=/etc/systemd/network/pia.network,template=/etc/systemd/network/pia.network.tmpl,mode=0444
 ```
@@ -552,7 +553,7 @@ This command must be executed after the tunnel is active.
 |----------------------------------|-----------------------|---------|--------------------------------------------------------------------------|
 | `--username string`              | PIA_USERNAME          | _none_  | Used to get a new authentication token, if expired.                      |
 | `--password string`              | PIA_PASSWORD          | _none_  | ibid                                                                     |
-| `--ifname string`                | _n/a_                 | `pia`   | Interface name associated with the active PIA tunnel                     |
+| `--if-name string`               | _n/a_                 | `pia`   | Interface name associated with the active PIA tunnel                     |
 | `--rtorrent string`              | RTORRENT              | _none_  | rTorrent SCGI endpoint (e.g., 127.0.0.1:5000)                            |
 | `--transmission string`          | TRANSMISSION          | _none_  | Transmission RPC endpoint (e.g., http://localhost:9091/transmission/rpc) |
 | `--transmission-username string` | TRANSMISSION_USERNAME | _none_  | Transmission RPC username (if required)                                  |
@@ -565,7 +566,7 @@ _Basic port forward retrieval._ Will obtain a forwarding port, store it in the
 cache file, but do nothing further with it.
 
 ```sh
-pia-portforward --ifname pia
+pia-portforward --if-name pia
 ```
 
 _Update rTorrent with the forwarded port._ This will obtain a forwarding port
@@ -575,7 +576,7 @@ port.
 
 ```sh
 pia-portforward \
-  --ifname pia \
+  --if-name pia \
   --rtorrent http://127.0.0.1:5000
 ```
 
@@ -592,7 +593,7 @@ export TRANSMISISON=http://192.168.77.77:9091/transmission/rpc
 export TRANSMISSION_USERNAME=user
 export TRANSMISSION_PASSWORD=pass
 
-pia-portforward --ifname pia
+pia-portforward --if-name pia
 ```
 
 _Refresh Port Forwarding Assignment._ For reasons of practicality, this should
@@ -605,7 +606,7 @@ one if necessary.
 export PIA_USERNAME=user
 export PIA_PASSWORD=pass
 
-pia-portforward --ifname pia --refresh
+pia-portforward --if-name pia --refresh
 ```
 
 #### Typical Workflow
