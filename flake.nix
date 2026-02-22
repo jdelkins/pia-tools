@@ -24,10 +24,27 @@
             pkg = pkgs.callPackage ./package.nix { };
           in
           {
+            apps = rec {
+              default = listregions;
+              listregions = {
+                type = "app";
+                program = "${pkg}/bin/pia-listregions";
+              };
+              setup-tunnel = {
+                type = "app";
+                program = "${pkg}/bin/pia-setup-tunnel";
+              };
+              portforward = {
+                type = "app";
+                program = "${pkg}/bin/pia-portforward";
+              };
+            };
+
             packages = {
               pia-tools = pkg;
               default = pkg;
             };
+
             devShells = {
               default = pkgs.mkShell {
                 packages = with pkgs; [
