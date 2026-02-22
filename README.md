@@ -664,7 +664,7 @@ pia-portforward --help
 4. Schedule `pia-portforward` periodically to renew the port forwarding lease.
 
 Both commands are designed to be automation-friendly and safe for use within
-systemd units like the included examples in the [./systemd][] directory.
+systemd units like the included examples in the [systemd](./systemd) directory.
 
 ## Troubleshooting
 
