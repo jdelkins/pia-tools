@@ -40,6 +40,9 @@ var _piaCertpool *x509.CertPool = nil
 
 func getPiaCertpool() *x509.CertPool {
 	if _piaCertpool == nil {
+		// This is PIA's self-signed CA certificate, which will expire on
+		// Apr 12 17:40:33 2034 GMT.
+		// Source: https://github.com/pia-foss/manual-connections/blob/master/ca.rsa.4096.crt
 		p, _ := pem.Decode([]byte(`
 -----BEGIN CERTIFICATE-----
 MIIHqzCCBZOgAwIBAgIJAJ0u+vODZJntMA0GCSqGSIb3DQEBDQUAMIHoMQswCQYD
