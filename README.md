@@ -316,12 +316,12 @@ outputs =
     ```
 
     The above examples should be pretty self-explanatory; if not, you should
-    read up on `systemd-networkd` and/or `text/template`. For info on what
-    other template fields are available (though the above examples demonstrate
-    (I think) all of the useful ones), check out [the Tunnel struct in the
-    `pia` package][tun]. The template processing package includes [sprig][],
-    which provides a number of additional template functions, should they come
-    in handy.
+    read up on `systemd-networkd` and/or `text/template`. For info on what other
+    template fields are available (though the above examples demonstrate (I
+    think) all of the useful ones), check out [the Tunnel struct in the `pia`
+    package](./internal/pia/pia.go#L18). The template processing package includes
+    [sprig][], which provides a number of additional template functions, should
+    they come in handy.
 
 2. `mkdir /var/cache/pia` and set the directory permissions as restrictive as
    you can, probably `root:root` and mode `0700`. This directory will hold
@@ -681,5 +681,4 @@ it must be enabled with a sysctl command like the following:
 [rtorrent]: https://github.com/rakshasa/rtorrent
 [transmission]: https://transmissionbt.com/
 [qbittorrent]: https://www.qbittorrent.org/
-[tun]: https://github.com/jdelkins/pia-tools/blob/09ebfbe23d457cca3bf28a0a9a27c028311bc752/internal/pia/pia.go#L20
 [sprig]: http://masterminds.github.io/sprig/
