@@ -624,15 +624,47 @@ export PIA_PASSWORD=pass
 pia-portforward --if-name pia --refresh
 ```
 
+#### NixOS: Running cli without installing
+
+The project's flake includes "app" otuputs for the three cli programs, allowing
+NixOS users to run the cli programs from the github repo without installing
+them. Examples:
+
+```sh
+# This will list the available PIA regions and their ping time
+# using pia-listregions
+nix run github:jdelkins/pia-tools
+
+# This does the same thing, explicitly naming the app (listregions
+# is the default app)
+nix run github:jdelkins/pia-tools#listregions
+
+# Runs pia-setup-tunnel --help
+nix run github:jdelkins/pia-tools#setup-tunnel -- --help
+
+# Runs pia-portforward --help
+nix run github:jdelkins/pia-tools#portforward -- --help
+```
+
+Alternatively, you could use `nix shell` to make the cli programs temporarily
+available to you in a subshell.
+
+```sh
+nix shell github:jdelkins/pia-tools
+pia-listregions
+pia-setup-tunnel --help
+pia-portforward --help
+```
+
 #### Typical Workflow
 
-1. Run pia-setup-tunnel to (re-)configure the WireGuard interface files.
+1. Run `pia-setup-tunnel` to (re-)configure the WireGuard interface files.
 2. Bring the interface up using systemd-networkd.
-3. Run pia-portforward to retrieve and apply the forwarded port to downstream services.
-4. Schedule pia-portforward periodically to renew the port forwarding lease.
+3. Run `pia-portforward` to retrieve and apply the forwarded port to downstream services.
+4. Schedule `pia-portforward` periodically to renew the port forwarding lease.
 
 Both commands are designed to be automation-friendly and safe for use within
-systemd units.
+systemd units like the included examples in the [./systemd][] directory.
 
 ## Troubleshooting
 
