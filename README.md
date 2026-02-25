@@ -1,11 +1,11 @@
 # pia-tools
 
 A suite of tools for establishing a [WireGuard][wireguard] tunnel to [Private
-Internet Access][PIA] on Linux using [systemd-networkd][], based on [PIA’s
-REST API](https://github.com/pia-foss/manual-connections). It can also manage
-PIA’s port forwarding feature and optionally notify rTorrent and/or Transmission
-of the assigned port via their RPC interfaces; this will allow receiving
-incoming bitorrent peer requests over the VPN.
+Internet Access][PIA] on Linux using [systemd-networkd][], based on [PIA’s REST
+API](https://github.com/pia-foss/manual-connections). It can also manage PIA’s
+port forwarding feature and optionally notify rTorrent and/or Transmission (via
+RPC) of the assigned port; this will allow receiving incoming BitTorrent peer
+connections over the VPN.
 
 According to their documentation, [PIA][] requires you to refresh the port
 forwarding assignment every few minutes. The `pia-portforward` utility can do
@@ -114,12 +114,41 @@ if you have a different networking preference.
 
 ## NixOS Module
 
-This repo includes a NixOS module to make it easy to configure and deploy
-on that OS. Just include it as an input in your flake, and configure through
-the "pia-tools" option tree. You would probably also want to include the
-systemd-networkd template files (`wg_pia.netdev.tmpl` and `wg_pia.network.tmpl`
-in the example, see the manual install section below) in your flake repo.
-Example follows.
+This repo includes a NixOS module to make it easy to configure
+and deploy on that OS. Just include it as an input in your flake,
+and configure through the `services.pia-tools` option tree. You
+would probably also want to include the systemd-networkd template
+files ([`pia.netdev.tmpl`](./systemd/network/pia.netdev.tmpl) and
+[`pia.network.tmpl`](./systemd/network/pia.network.tmpl) in the example, see
+the manual install section below) in your flake repo, or write your own, or base
+your config on the detailed example, which follows.
+
+### NixOS Module options
+
+| Option                                   | Type                                | Description                                                                                                                                                                                                                                  |
+|------------------------------------------|-------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `services.pia-tools.enable`              | `bool`                              | Enable the pia-tools NixOS module.                                                                                                                                                                                                           |
+| `services.pia-tools.package`             | `package`                           | The pia-tools package to use.                                                                                                                                                                                                                |
+| `services.pia-tools.user`                | `string`                            | User to run the tool as.                                                                                                                                                                                                                     |
+| `services.pia-tools.group`               | `string`                            | Group to run the tool as.                                                                                                                                                                                                                    |
+| `services.pia-tools.cacheDir`            | `path`                              | Where to store tunnel descriptions in JSON format, containing private keys.                                                                                                                                                                  |
+| `services.pia-tools.ifname`              | `string`                            | Name of PIA WireGuard network interface.                                                                                                                                                                                                     |
+| `services.pia-tools.region`              | `string`                            | Region to connect to, or `auto` by default.                                                                                                                                                                                                  |
+| `services.pia-tools.rTorrentUrl`         | `null or string`                    | URL to rTorrent SCGI endpoint.                                                                                                                                                                                                               |
+| `services.pia-tools.transmissionUrl`     | `null or string`                    | Transmission RPC endpoint URL. If your Transmission server requires a username and password, set them in `config.services.pia-tools.envFile` with `TRANSMISSION_USERNAME` and `TRANSMISSION_PASSWORD`.                                       |
+| `services.pia-tools.envFile`             | `path`                              | **Required.** Path to a file that sets environment variables used to set up the tunnel device. Recognized variables include `PIA_USERNAME` and `PIA_PASSWORD` (required), plus optional `TRANSMISSION_USERNAME` and `TRANSMISSION_PASSWORD`. |
+| `services.pia-tools.resetServiceName`    | `string`                            | Name of systemd service for pia-tools tunnel reset.                                                                                                                                                                                          |
+| `services.pia-tools.resetTimerConfig`    | `null or systemd timerConfig attrs` | Timer defining frequency of resetting the tunnel. Set to `null` to disable.                                                                                                                                                                  |
+| `services.pia-tools.refreshServiceName`  | `string`                            | Name of systemd service for pia-tools tunnel port forwarding refresh.                                                                                                                                                                        |
+| `services.pia-tools.refreshTimerConfig`  | `null or systemd timerConfig attrs` | Timer defining frequency of refreshing the tunnel's port forwarding assignment. Set to `null` to disable.                                                                                                                                    |
+| `services.pia-tools.whitelistScript`     | `null or path`                      | Script to run when the WireGuard endpoint is established (e.g., add the endpoint IP to a firewall passlist). The script is called with the IP as the only argument. Set to `null` to ignore.                                                 |
+| `services.pia-tools.portForwarding`      | `bool`                              | Whether to request a port forwarding assignment from PIA.                                                                                                                                                                                    |
+| `services.pia-tools.netdevTemplateFile`  | `path`                              | `systemd.netdev` template used to generate the actual `.netdev`.                                                                                                                                                                             |
+| `services.pia-tools.networkTemplateFile` | `path`                              | `systemd.network` template used to generate the actual `.network`.                                                                                                                                                                           |
+| `services.pia-tools.netdevFile`          | `path`                              | Path at which to install the generated `.netdev` file.                                                                                                                                                                                       |
+| `services.pia-tools.networkFile`         | `path`                              | Path at which to install the generated `.network` file.                                                                                                                                                                                      |
+
+### NixOS Detailed Example Configuration
 
 This example is not likely to be usable by you directly. These are complex
 networking topics, and it is dangerous to rely on examples for your production
@@ -127,19 +156,30 @@ set-up. Do your homework and make sure you have a correct and safe firewall
 configuration.
 
 In this example, we are configuring a firewall host, with a single LAN
-interface. pia-tools gets configured to establish a VPN tunnel called `wg_pia`,
-and assumes we use systemd-networkd templates similar to those in the repo,
-which set up a default route through the tunnel. We have a transmission server
-running on the LAN at 192.168.100.100, and we want to forward UDP ports to it
-from the VPN. All outgoing ipv4 traffic from the LAN is allowed out through the
-VPN, from transmission or any other host on the LAN that uses this firewall as
-its router. The included routing policy routes forwarded LAN traffic through
-the VPN while keeping the firewall host’s own traffic (including tunnel
-establishment) on the WAN. The tunnel gets torn down and remade with a new
-virtual IP every day at 5:15 AM.
+interface:
+
+- pia-tools gets configured to establish a VPN tunnel called `wg_pia`, using
+  inline-defined systemd-networkd templates.
+- The region we connect to will be automatically chosen each time the tunnel is
+  reestablished. It will choose the lowest ping-time server that supports port
+  forwarding.
+- These templates set up a default route through the tunnel in a dedicated
+  routing table, which is used only by traffic from the LAN. The included
+  routing-policy routes forwarded LAN traffic through the VPN while keeping the
+  firewall host’s own traffic (including tunnel establishment) on the WAN.
+- We have a transmission server running on the LAN at 192.168.100.100, and we
+  want to forward UDP ports to it from the VPN.
+- All outgoing IPv4 traffic from the LAN is allowed out through the VPN, from
+  transmission or any other host on the LAN that uses this firewall as its
+  router.
+- If the VPN link goes down, LAN traffic will be routed to the WAN instead.
+  However, there is a commented configuration block that will change this, if
+  you prefer a "kill switch" approach.
+- The tunnel gets torn down and remade with a new virtual IP every day at 5:15
+  AM.
 
 Note that, theoretically, there is no reason this firewall has to be exposed on
-your WAN, it could, for example, be in a DMZ behind your wan router, with only
+your WAN, it could, for example, be in a DMZ behind your WAN router, with only
 certain LAN clients configured (manually or via DHCP) to use its LAN address as
 its default route. It just needs WAN egress in order to establish the tunnel.
 
@@ -258,6 +298,10 @@ outputs =
               enable = true;
               ifname = wgIf;
 
+              # Change this if you want to always connect to a certain regional
+              # server.
+              region = "auto";
+
               # envFile needs to contain
               #   PIA_USERNAME=<pia username>
               #   PIA_PASSWORD=<pia password>
@@ -337,11 +381,11 @@ outputs =
 
 ### Configure Tunnel Interface
 
-1. Set up `/etc/systemd/network/<interface>.netdev.tmpl` and `/etc/systemd/network/<interface>.network.tmpl` template
-   files. These templates use the Go package
-   [`text/template`](https://pkg.go.dev/text/template) to replace tokens with
-   data received from [PIA][] when requesting the tunnel to be set up. For
-   example:
+1. Set up `/etc/systemd/network/<interface>.netdev.tmpl` and
+   `/etc/systemd/network/<interface>.network.tmpl` template files. These
+   templates use the Go package [`text/template`][text-template] to replace
+   tokens with data received from [PIA][] when requesting the tunnel to be set
+   up. For example:
 
     `/etc/systemd/network/<interface>.netdev.tmpl`
     ```
@@ -391,12 +435,12 @@ outputs =
     ```
 
     The above examples should be pretty self-explanatory; if not, you should
-    read up on `systemd-networkd` and/or `text/template`. For info on what other
-    template fields are available (though the above examples demonstrate (I
-    think) all of the useful ones), check out [the Tunnel struct in the `pia`
-    package](./internal/pia/pia.go#L18). The template processing package includes
-    [sprig][], which provides a number of additional template functions, should
-    they come in handy.
+    read up on `systemd-networkd` and/or [`text/template`][text-template]. For
+    info on what other template fields are available (though the above examples
+    demonstrate (I think) all of the useful ones), check out [the Tunnel struct
+    in the `pia` package](./internal/pia/pia.go#L18). The template processing
+    package includes [sprig][], which provides a number of additional template
+    functions, should they come in handy.
 
 2. `mkdir /var/cache/pia` and set the directory permissions as restrictive as
    you can, probably `root:root` and mode `0700`. This directory will hold
@@ -763,3 +807,4 @@ enabled with a sysctl command like the following:
 [transmission]: https://transmissionbt.com/
 [qbittorrent]: https://www.qbittorrent.org/
 [sprig]: http://masterminds.github.io/sprig/
+[text-template]: https://pkg.go.dev/text/template
