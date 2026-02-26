@@ -114,14 +114,14 @@ if you have a different networking preference.
 
 ## NixOS Module
 
-This repo includes a NixOS module to make it easy to configure
-and deploy on that OS. Just include it as an input in your flake,
-and configure through the `services.pia-tools` option tree. You
-would probably also want to include the systemd-networkd template
-files ([`pia.netdev.tmpl`](./systemd/network/pia.netdev.tmpl) and
-[`pia.network.tmpl`](./systemd/network/pia.network.tmpl) in the example, see
-the manual install section below) in your flake repo, or write your own, or base
-your config on the detailed example, which follows.
+This repo includes a NixOS module to make it easy to configure and deploy
+on that OS. Just include it as an input in your flake, and configure
+through the `services.pia-tools` option tree. You would probably
+also want to include (your modified version of) the systemd-networkd
+template files ([`pia.netdev.tmpl`](./systemd/network/pia.netdev.tmpl)
+and [`pia.network.tmpl`](./systemd/network/pia.network.tmpl) in your
+flake repo, or write your own, or base your config on the [detailed
+example](#nixos-detailed-example-configuration), which follows.
 
 ### NixOS Module options
 
