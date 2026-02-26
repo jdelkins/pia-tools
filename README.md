@@ -119,7 +119,7 @@ on that OS. Just include it as an input in your flake, and configure
 through the `services.pia-tools` option tree. You would probably
 also want to include (your modified version of) the systemd-networkd
 template files ([`pia.netdev.tmpl`](./systemd/network/pia.netdev.tmpl)
-and [`pia.network.tmpl`](./systemd/network/pia.network.tmpl) in your
+and [`pia.network.tmpl`](./systemd/network/pia.network.tmpl)) in your
 flake repo, or write your own, or base your config on the [detailed
 example](#nixos-detailed-example-configuration), which follows.
 
@@ -178,10 +178,54 @@ interface:
 - The tunnel gets torn down and remade with a new virtual IP every day at 5:15
   AM.
 
-Note that, theoretically, there is no reason this firewall has to be exposed on
-your WAN, it could, for example, be in a DMZ behind your WAN router, with only
-certain LAN clients configured (manually or via DHCP) to use its LAN address as
-its default route. It just needs WAN egress in order to establish the tunnel.
+#### Notes
+
+- Theoretically, there is no reason this gateway has to be exposed on your WAN,
+  it could, for example, be in a DMZ behind your WAN router, with only certain
+  LAN clients configured (manually or via DHCP) to use its LAN address as its
+  default route. It just needs outbound WAN connectivity in order to establish
+  the tunnel.
+
+- To make this gateway the default for your LAN, you would probably want to
+  configure your DHCPv4 server (if you use one, and you probably should) to
+  advertise the router's LAN address as the default route (DHCP option 3).
+
+#### Regarding DNS "leaks"
+
+DNS leaks happen when you allow some part of a connection to happen outside
+of the tunnel. The most common cases are IPv6 and DNS.
+
+- **IPv6** PIA doesn't provide IPv6 tunneling, it is an IPv4-only service. If
+  you run an IPv4/IPv6 dual stack on the LAN network, any IPv6 traffic that
+  exits via the WAN interface will bypass the VPN tunnel. Therefore, you may
+  wish to add firewall and/or routing rules to block outgoing IPv6. As it is,
+  this example doesn't enable, disable, or otherwise address IPv6 networking.
+
+- **DNS** Most connections start with a DNS lookup of a domain name. If
+  that lookup is sent to a public DNS server via a route outside of the VPN
+  tunnel, then you are leaking information about where you make connections.
+  Even when DNS queries are sent through the VPN tunnel, the DNS provider
+  itself can still log the lookup and its timing, although your ISP cannot
+  observe it. Best practice is to use the VPN-provided DNS servers, which
+  are ostensibly zero-log. If you use DHCP on the LAN, you should therefore
+  advertise PIA's DNS servers in option 6 (`domain-name-servers`). In practice,
+  they are consistently `10.0.0.242` and `10.0.0.243`, but PIA could change
+  them. The addresses are actually retrieved and cached in the json file
+  by `pia-setup-tunnel`, and you could make use of this (in order to, e.g.,
+  dynamically update your DHCP server configuration) as in the following.
+  (I personally don't bother to dynamically update the DHCP server, and
+  just use the seemingly constant addresses.) The example adds routes to the
+  (dynamically-retrieved) DNS servers, so they should work as long as your LAN
+  subnet does not overlap with `10.0.0.242/31` (for example, if you are using a
+  broad `10.0.0.0/8` LAN).
+
+  ```
+  $ jq -r '.dns_servers[]' /var/cache/pia/wg_pia.json
+  10.0.0.243
+  10.0.0.242
+  ```
+
+#### The NixOS Example
 
 `flake.nix`
 ```nix
@@ -435,7 +479,7 @@ outputs =
     ```
 
     The above examples should be pretty self-explanatory; if not, you should
-    read up on `systemd-networkd` and/or [`text/template`][text-template]. For
+    read up on [systemd-networkd][] and/or [text/template][text-template]. For
     info on what other template fields are available (though the above examples
     demonstrate (I think) all of the useful ones), check out [the Tunnel struct
     in the `pia` package](./internal/pia/pia.go#L18). The template processing
