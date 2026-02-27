@@ -7,20 +7,31 @@ port forwarding feature and optionally notify rTorrent and/or Transmission (via
 RPC) of the assigned port; this will allow receiving incoming BitTorrent peer
 connections over the VPN.
 
-According to their documentation, [PIA][] requires you to refresh the port
-forwarding assignment every few minutes. The `pia-portforward` utility can do
-this with the `--refresh` flag.
+A helper utility, `pia-listregions`, will show you, on your terminal, a ranked
+(by ping time) list of PIA servers, with some possibly-salient info about them,
+with the goal of helping you choose the 'best' region to connect to if you are
+otherwise indifferent about their geography.
 
-One final utility, `pia-listregions`, will show you, on your terminal, a
-ranked (by ping time) list of PIA servers, with some possibly-salient info
-about them, with the goal of helping you choose the 'best' region to connect to
-if you are otherwise indifferent about their geography.
+## Stability and usability
 
-## Caveat emptor
+This code is tested with only my own private setup. It may or may not work for
+you, and if it does, some assembly will be required by you. That said, I have
+used and developed it for a few years, and really enjoy the low-maintenance
+functionality and peace of mind it provides for me.
 
-This code is only lightly tested with my own private set up. It may or may not
-work for you, and if it does, some assembly will be required by you. PRs are
-welcome, especially if they would cover any more general use cases.
+If you use it yourself, and are able to identify additional features or
+encounter problems, I encourage you to submit an issue or PR. I will take any
+security concern very seriously, as my own system is on the line.
+
+The go programs in this suite aren't going to do anything to your system
+directly other than write some configuration files where you instruct it (by
+default `/etc/systemd/network`). The example systemd services take additional
+steps to invoke standard networking commands to read and act on those generated
+configuration files. It’s not doing anything exotic; it generates configuration
+files and then standard system tools apply them. Nevertheless, it is for a
+fairly advanced use case, not something for the average consumer. You could
+break your networking potentially if you don't know what you're doing, but
+that's also true of any networking toolkit.
 
 If you use this on a remote firewall, ensure you have out-of-band access before
 experimenting with routing.
@@ -71,10 +82,10 @@ Read on for how.
 There are a couple of ways to use a VPN. One way is to set it up on your
 workstation, laptop, or mobile device, so that your traffic is encrypted on
 your device, through your LAN and then the internet to the VPN service provider.
-This is "end to edge" encryption, and is the best protection a VPN can provide.
+This is "end-to-end" encryption, and is the best protection a VPN can provide.
 For most users, this is easy and affords plenty of protection, and for that
 [PIA][] has nice desktop and mobile apps that are simple to use, but do require
-installing them and setting them up. PIA are putting out apps for more and more
+installing them and setting them up. PIA is putting out apps for more and more
 devices, but, unfortunately, they can't keep up with all the IoT devices, smart
 home hubs, smart TVs, etc. As a result, we have to live with some unencrypted
 traffic, and this segment is growing very fast in terms of number of devices and
@@ -84,14 +95,21 @@ Another way to use a VPN, available to you only if you control your network
 infrastructure, is to set up your LAN's firewall to connect to the VPN service
 and route all (or some selection) of the outgoing LAN traffic through the VPN.
 This way, any devices on the LAN can benefit from the VPN without configuring
-those devices at all. Note that this is "edge to edge" encryption, which is a
+those devices at all. Note that this is "edge-to-edge" encryption, which is a
 bit weaker since there is part of the path, the first part on your LAN, where
-traffic is unencrypted. I'm okay with this, because I have physical control
-of all apparatus from "end to edge". If you use anyone else's wifi access
-point, or connect your access point to someone else's switch, this would not
-be the case for you. Stick with the VPN app. This project is for people who,
-like me, are okay with this depth-for-breadth tradeoff, and who also use
-`systemd-networkd` on their firewall.[^2]
+traffic is unencrypted. I'm okay with this, because I have physical control of
+all apparatus on my LAN. If you use anyone else's wifi access point, or connect
+your access point to someone else's switch, this would not be the case for you.
+Stick with the VPN app. This project is for people who, like me, are okay with
+this depth-for-breadth tradeoff, and who also use `systemd-networkd` on their
+firewall.[^2]
+
+Because you can, _should_ you do this? I find little downside in using a fast
+WireGuard[wireguard]-based VPN. My VPN tunneled traffic is indistinguishably
+fast as untunneled traffic almost all of the time, and this suite is pretty
+much hands-free for me. So is it worth the tradeoff? For me, yes, only because
+the tradeoff is close to zero. I wouldn't do it if I had to make a meaningful
+performance sacrifice or take on a significant administration burden.
 
 [^1]: I have no affiliation with [PIA][] other than as a customer. My opinions
 are my own, and I cannot endorse their, or any, VPN service. Caveat emptor.
@@ -134,12 +152,12 @@ example](#nixos-detailed-example-configuration), which follows.
 | `services.pia-tools.cacheDir`            | `path`                              | Where to store tunnel descriptions in JSON format, containing private keys.                                                                                                                                                                  |
 | `services.pia-tools.ifname`              | `string`                            | Name of PIA WireGuard network interface.                                                                                                                                                                                                     |
 | `services.pia-tools.region`              | `string`                            | Region to connect to, or `auto` by default.                                                                                                                                                                                                  |
-| `services.pia-tools.rTorrentUrl`         | `null or string`                    | URL to rTorrent SCGI endpoint.                                                                                                                                                                                                               |
+| `services.pia-tools.rTorrentUrl`         | `null or string`                    | URL to rTorrent XML-RPC endpoint.                                                                                                                                                                                                            |
 | `services.pia-tools.transmissionUrl`     | `null or string`                    | Transmission RPC endpoint URL. If your Transmission server requires a username and password, set them in `config.services.pia-tools.envFile` with `TRANSMISSION_USERNAME` and `TRANSMISSION_PASSWORD`.                                       |
 | `services.pia-tools.envFile`             | `path`                              | **Required.** Path to a file that sets environment variables used to set up the tunnel device. Recognized variables include `PIA_USERNAME` and `PIA_PASSWORD` (required), plus optional `TRANSMISSION_USERNAME` and `TRANSMISSION_PASSWORD`. |
 | `services.pia-tools.resetServiceName`    | `string`                            | Name of systemd service for pia-tools tunnel reset.                                                                                                                                                                                          |
 | `services.pia-tools.resetTimerConfig`    | `null or systemd timerConfig attrs` | Timer defining frequency of resetting the tunnel. Set to `null` to disable.                                                                                                                                                                  |
-| `services.pia-tools.refreshServiceName`  | `string`                            | Name of systemd service for pia-tools tunnel port forwarding refresh.                                                                                                                                                                        |
+| `services.pia-tools.refreshServiceName`  | `string`                            | Name of systemd service for pia-tools tunnel port forwarding refresh (only relevant if portForwarding is enabled).                                                                                                                           |
 | `services.pia-tools.refreshTimerConfig`  | `null or systemd timerConfig attrs` | Timer defining frequency of refreshing the tunnel's port forwarding assignment. Set to `null` to disable.                                                                                                                                    |
 | `services.pia-tools.whitelistScript`     | `null or path`                      | Script to run when the WireGuard endpoint is established (e.g., add the endpoint IP to a firewall passlist). The script is called with the IP as the only argument. Set to `null` to ignore.                                                 |
 | `services.pia-tools.portForwarding`      | `bool`                              | Whether to request a port forwarding assignment from PIA.                                                                                                                                                                                    |
@@ -172,9 +190,9 @@ interface:
 - All outgoing IPv4 traffic from the LAN is allowed out through the VPN, from
   transmission or any other host on the LAN that uses this firewall as its
   router.
-- If the VPN link goes down, LAN traffic will be routed to the WAN instead.
-  However, there is a commented configuration block that will change this, if
-  you prefer a "kill switch" approach.
+- In the example, if the VPN link goes down systemd-networkd will remove the VPN
+  default route, in which case LAN traffic should fall back to the WAN default
+  route, unless you enable the optional kill switch.
 - The tunnel gets torn down and remade with a new virtual IP every day at 5:15
   AM.
 
@@ -190,34 +208,40 @@ interface:
   configure your DHCPv4 server (if you use one, and you probably should) to
   advertise the router's LAN address as the default route (DHCP option 3).
 
+- To make this example actually usable in any way, you would need to, at a
+  minimum, configure the LAN and WAN interfaces. The example doesn't address
+  that.
+
+- As written, the example uses the nftables-backed firewall; extraForwardRules
+  are written in nft syntax. If you prefer iptables (I don't), adapt accordingly.
+
 #### Regarding DNS "leaks"
 
-DNS leaks happen when you allow some part of a connection to happen outside
-of the tunnel. The most common cases are IPv6 and DNS.
+DNS leaks happen when you allow some traffic to bypass the tunnel, such as can
+happen with IPv6 and DNS.
 
-- **IPv6** PIA doesn't provide IPv6 tunneling, it is an IPv4-only service. If
+- **IPv6**. PIA doesn't provide IPv6 tunneling; it is an IPv4-only service. If
   you run an IPv4/IPv6 dual stack on the LAN network, any IPv6 traffic that
   exits via the WAN interface will bypass the VPN tunnel. Therefore, you may
   wish to add firewall and/or routing rules to block outgoing IPv6. As it is,
   this example doesn't enable, disable, or otherwise address IPv6 networking.
 
-- **DNS** Most connections start with a DNS lookup of a domain name. If
-  that lookup is sent to a public DNS server via a route outside of the VPN
-  tunnel, then you are leaking information about where you make connections.
-  Even when DNS queries are sent through the VPN tunnel, the DNS provider
-  itself can still log the lookup and its timing, although your ISP cannot
-  observe it. Best practice is to use the VPN-provided DNS servers, which
-  are ostensibly zero-log. If you use DHCP on the LAN, you should therefore
-  advertise PIA's DNS servers in option 6 (`domain-name-servers`). In practice,
-  they are consistently `10.0.0.242` and `10.0.0.243`, but PIA could change
-  them. The addresses are actually retrieved and cached in the json file
+- **DNS**. Most connections start with a DNS lookup of a domain name. If that
+  lookup is sent to a public DNS server via a route outside of the VPN tunnel,
+  then you are leaking information about where you make connections. Even when
+  DNS queries are sent through the VPN tunnel, the DNS provider itself can
+  still log the lookup and its timing, although your ISP cannot observe it.
+  Best practice is to use the VPN-provided DNS servers, which are ostensibly
+  zero-log. If you use DHCP on the LAN, you should therefore advertise PIA's
+  DNS servers in option 6 (`domain-name-servers`). In practice, as of this
+  writing, they are consistently `10.0.0.242` and `10.0.0.243`, but PIA could
+  change them. The addresses are actually retrieved and cached in the json file
   by `pia-setup-tunnel`, and you could make use of this (in order to, e.g.,
-  dynamically update your DHCP server configuration) as in the following.
-  (I personally don't bother to dynamically update the DHCP server, and
-  just use the seemingly constant addresses.) The example adds routes to the
-  (dynamically-retrieved) DNS servers, so they should work as long as your LAN
-  subnet does not overlap with `10.0.0.242/31` (for example, if you are using a
-  broad `10.0.0.0/8` LAN).
+  dynamically update your DHCP server configuration; I personally don't bother
+  to do so) as the following snippet demonstrates. The example below adds routes
+  to the (dynamically-retrieved) DNS servers, so they should work as long as
+  your LAN subnet does not overlap with `10.0.0.242/31` (for example, if you are
+  using a broad `10.0.0.0/8` LAN).
 
   ```
   $ jq -r '.dns_servers[]' /var/cache/pia/wg_pia.json
@@ -242,11 +266,13 @@ outputs =
       modules = [
         pia-tools.nixosModules.pia-tools
         (
-          { pkgs, ... }:
+          { pkgs, lib, ... }:
           let
             wgIf = "wg_pia";
             lanIf = "lan";
             transmissionIp = "192.168.100.100";
+            # set to true to disable outbound networking when the VPN link is down
+            killSwitch = false;
 
             netdevTemplate = pkgs.writeText "${wgIf}.netdev.tmpl" ''
               [NetDev]
@@ -291,22 +317,6 @@ outputs =
               GatewayOnLink=true
               Scope=global
               Table=vpn
-
-              # Look in the main table first for non-default routes
-              [RoutingPolicyRule]
-              Priority=900
-              SuppressPrefixLength=0
-              Family=ipv4
-              Table=main
-
-              # if the above doesn't match a route from main, and
-              # if the traffic is from the lan, then use the vpn
-              # as the default route.
-              [RoutingPolicyRule]
-              Priority=1000
-              IncomingInterface=${lanIf}
-              Family=ipv4
-              Table=vpn
             '';
           in
           {
@@ -320,23 +330,47 @@ outputs =
               addRouteTablesToIPRoute2 = true;
             };
 
-            # If you want an "internet kill switch", i.e. block outgoing lan
-            # traffic when vpn is down, you can add something like the following.
-            # Without it, LAN traffic is routed out the (unencrypted) default route
-            # when the vpn link is down, assuming the firewall rules allow this.
-            #
-            #systemd.network.networks.lo = {
-            #  enable = true;
-            #  name = "lo";
-            #  routes = [
-            #    {
-            #      Destination = "0.0.0.0/0";
-            #      Metric = 100000;
-            #      Type = "unreachable";
-            #      Table = "vpn";
-            #    }
-            #  ];
-            #}
+            systemd.network.networks.lo = {
+              enable = true;
+              name = "lo";
+              # optional kill switch implementation
+              routes = lib.optional killSwitch {
+                Destination = "0.0.0.0/0";
+                # the high metric means this route will only be used if the VPN
+                # is down, in which case networkd will remove its route, leaving
+                # only this.
+                # Without this, if the VPN is down, the vpn table should be
+                # empty, meaning the rules will fall thorough to the main
+                # routing table, where the host's default route should match.
+                Metric = 100000;
+                Type = "unreachable";
+                Table = "vpn";
+              };
+              # We attach RPDB rules to lo because it’s always present; the
+              # rules apply globally.
+              routingPolicyRules = [
+                # First traverse the main table, but exclude default routes. If
+                # you do LAN routing to multiple internal subnets, they should
+                # be picked up cleanly in this way.
+                {
+                  Priority = 900;
+                  SuppressPrefixLength = 0;
+                  Family = "ipv4";
+                  Table = "main";
+                }
+                # For LAN traffic that doesn't match site local routes above,
+                # send them to the "vpn" table, which should have the VPN
+                # default route, and possibly the "unreachable" kill switch, if
+                # enabled. Local-origin traffic will skip this and go to main
+                # via the default FIB rules.
+                {
+                  Priority = 1000;
+                  IncomingInterface = lanIf;
+                  Family = "ipv4";
+                  Table = "vpn";
+                }
+              ];
+            };
 
             services.pia-tools = {
               enable = true;
@@ -362,9 +396,9 @@ outputs =
               portForwarding = true;
 
               # RPC endpoint of transmission server. Usually the web
-              # endpoint with /rpc/ added at the end.
+              # endpoint with /rpc added at the end.
               # Ignored unless portForwarding = true
-              transmissionUrl = "http://${transmissionIp}:9091/rpc/";
+              transmissionUrl = "http://${transmissionIp}:9091/rpc";
 
               # rotate the tunnel daily at 5:15 am
               resetTimerConfig.OnCalendar = "*-*-* 05:15:00";
@@ -525,19 +559,18 @@ VPN.
    saved some information in the file `/var/cache/pia/<interface>.json`. We
    will read that file and add to it as part of the next step.
 
-2. For bittorrent users: the thing with bittorrent, like ftp, is that some layer 3 info
-   (the port number by which your server is reachable) is communicated in the layer 7
-   protocol (announce messages). This layer transgression requires communicating some
-   layer 3 info to your bittorrent server using some facility provided by the server.
-   Most popular bittorrent servers that I've looked into have an RPC interface, which
-   may need to be configured/enabled (see below).
-   
+2. For bittorrent users: Some protocols (including bittorrent) need to know the
+   externally reachable port. When that port is dynamic, as here, it requires
+   communicating the port number to your bittorrent server using some facility
+   provided by the server. Most popular bittorrent servers that I've looked into
+   have an RPC interface, which may need to be configured/enabled (see below).
+
    The `pia-portforward` tool can help communicating this port number to two
-   popular bittorrent apps, namely [rtorrent][] and [transmission][]. (I haven't gotten
-   around to implementing a similar feature for [qbittorrent][], the single most
-   popular bittorrent server on seedboxes, because I personally don't use it and
-   no one has asked, but I believe the RPC capability is there and it should be
-   simple to add.)
+   popular bittorrent apps, namely [rtorrent][] and [transmission][]. (I haven't
+   gotten around to implementing a similar feature for [qbittorrent][], the
+   single most popular bittorrent server on seedboxes, because I personally
+   don't use it and no one has asked, but I believe the RPC capability is there
+   and it should be simple to add.)
 
    If you are running [rtorrent][] or [transmission][] as the server behind the
    gateway, run, respectively, `pia-portforward --if-name <interface> --rtorrent
@@ -644,17 +677,17 @@ everything else. Credentials may be provided via flags or environment variables:
 
 #### Flags
 
-| Flag                         | Environment Var | Default          | Meaning                                                                                         |
-|------------------------------|-----------------|------------------|-------------------------------------------------------------------------------------------------|
-| `--region string`            | PIA_REGION      | `auto`           | PIA region identifier (e.g., us_chicago, us_texas)                                              |
-| `--username string`          | PIA_USERNAME    | _required_       | PIA account username                                                                            |
-| `--password string`          | PIA_PASSWORD    | _required_       | PIA account password                                                                            |
-| `--if-name string`           | _n/a_           | `pia`            | Interface name to create or reconfigure (e.g., v4, wg0)                                         |
-| `--netdev-file key=value,…`  | _n/a_           | _see below_      | Write a .netdev file using a key/value specification                                            |
-| `--network-file key=value,…` | _n/a_           | _see below_      | Write a .network file using a key/value specification                                           |
-| `--cache-dir`                | _n/a_           | `/var/cache/pia` | directory in which to save a json file with the tunnel parameters.                              |
-| `--wg-binary`                | _n/a_           | `wg`             | path to the `wg` binary from wireguard-tools (look in $PATH by default)                         |
-| `--from-cache`               | _n/a_           | _unset_          | Skip accessing PIA's api, and just (re-)generate the networkd files. Useful to debug templates. |
+| Flag                         | Environment Var | Default          | Meaning                                                                                                             |
+|------------------------------|-----------------|------------------|---------------------------------------------------------------------------------------------------------------------|
+| `--region string`            | PIA_REGION      | `auto`           | PIA region identifier (e.g., us_chicago, us_texas)                                                                  |
+| `--username string`          | PIA_USERNAME    | _required_       | PIA account username                                                                                                |
+| `--password string`          | PIA_PASSWORD    | _required_       | PIA account password                                                                                                |
+| `--if-name string`           | _n/a_           | `pia`            | Interface name to create or reconfigure (e.g., v4, wg0)                                                             |
+| `--netdev-file key=value,…`  | _n/a_           | _see below_      | Write a .netdev file using a key/value specification                                                                |
+| `--network-file key=value,…` | _n/a_           | _see below_      | Write a .network file using a key/value specification                                                               |
+| `--cache-dir`                | _n/a_           | `/var/cache/pia` | directory in which to save a json file with the tunnel parameters.                                                  |
+| `--wg-binary`                | _n/a_           | `wg`             | path to the `wg` binary from wireguard-tools (look in $PATH by default)                                             |
+| `--from-cache`               | _n/a_           | _unset_          | Skip accessing PIA's api, and just (re-)generate the networkd files from the json cache. Useful to debug templates. |
 
 #### File Specification Format
 
@@ -733,16 +766,16 @@ This command must be executed after the tunnel is active.
 
 #### Flags
 
-| Flag                             | Environment Var       | Default | Meaning                                                                  |
-|----------------------------------|-----------------------|---------|--------------------------------------------------------------------------|
-| `--username string`              | PIA_USERNAME          | _none_  | Used to get a new authentication token, if expired.                      |
-| `--password string`              | PIA_PASSWORD          | _none_  | ibid                                                                     |
-| `--if-name string`               | _n/a_                 | `pia`   | Interface name associated with the active PIA tunnel                     |
-| `--rtorrent string`              | RTORRENT              | _none_  | rTorrent SCGI endpoint (e.g., 127.0.0.1:5000)                            |
-| `--transmission string`          | TRANSMISSION          | _none_  | Transmission RPC endpoint (e.g., http://localhost:9091/transmission/rpc) |
-| `--transmission-username string` | TRANSMISSION_USERNAME | _none_  | Transmission RPC username (if required)                                  |
-| `--transmission-password string` | TRANSMISSION_PASSWORD | _none_  | Transmission RPC password (if required)                                  |
-| `--refresh`                      | _n/a_                 | _unset_ | Don't get a new port forwarding assignment, just refresh the active one  |
+| Flag                             | Environment Var       | Default | Meaning                                                                 |
+|----------------------------------|-----------------------|---------|-------------------------------------------------------------------------|
+| `--username string`              | PIA_USERNAME          | _none_  | Used to get a new authentication token, if expired.                     |
+| `--password string`              | PIA_PASSWORD          | _none_  | ibid                                                                    |
+| `--if-name string`               | _n/a_                 | `pia`   | Interface name associated with the active PIA tunnel                    |
+| `--rtorrent string`              | RTORRENT              | _none_  | rTorrent XML-RPC endpoint (e.g., http://localhost:5000)                 |
+| `--transmission string`          | TRANSMISSION          | _none_  | Transmission RPC endpoint (e.g., http://localhost:9091/rpc)             |
+| `--transmission-username string` | TRANSMISSION_USERNAME | _none_  | Transmission RPC username (if required)                                 |
+| `--transmission-password string` | TRANSMISSION_PASSWORD | _none_  | Transmission RPC password (if required)                                 |
+| `--refresh`                      | _n/a_                 | _unset_ | Don't get a new port forwarding assignment, just refresh the active one |
 
 #### Example Usage
 
@@ -773,7 +806,7 @@ token should still be valid. You can provide the PIA credentials if you want to
 be sure.
 
 ```sh
-export TRANSMISSION=http://192.168.77.77:9091/transmission/rpc
+export TRANSMISSION=http://192.168.77.77:9091/rpc
 export TRANSMISSION_USERNAME=user
 export TRANSMISSION_PASSWORD=pass
 
