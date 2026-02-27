@@ -12,7 +12,7 @@ A helper utility, `pia-listregions`, will show you, on your terminal, a ranked
 with the goal of helping you choose the 'best' region to connect to if you are
 otherwise indifferent about their geography.
 
-## Stability and usability
+## Stability and Usability
 
 This code is tested with only my own private setup. It may or may not work for
 you, and if it does, some assembly will be required by you. That said, I have
@@ -30,11 +30,30 @@ steps to invoke standard networking commands to read and act on those generated
 configuration files. It’s not doing anything exotic; it generates configuration
 files and then standard system tools apply them. Nevertheless, it is for a
 fairly advanced use case, not something for the average consumer. You could
-break your networking potentially if you don't know what you're doing, but
+potentially break your networking if you don't know what you're doing, but
 that's also true of any networking toolkit.
 
 If you use this on a remote firewall, ensure you have out-of-band access before
 experimenting with routing.
+
+## Security Model
+
+- The cache contains WireGuard private keys and PIA API auth material (e.g.,
+  tokens/port-forward signatures). Treat it as sensitive.
+
+- A new WireGuard keypair is generated each time the tunnel is (re-)established.
+
+- The tools read PIA username/password (from env / envFile) but do not persist
+  them to disk.
+
+- API calls and cache updates can be performed as an unprivileged service
+  account.
+
+- Root privileges are required only to write into privileged locations
+  (`/etc/systemd/network`) and to apply link changes.
+
+- Intended to be automated via systemd; the included units invoke standard
+  system tools (`networkctl`, `ip`) to activate changes.
 
 ## Quick Start
 
@@ -53,9 +72,10 @@ See [Manual Install](#manual-install) and the example units in [`./systemd`](./s
 
 1. Install tools
 2. Write templates, or copy and modify the examples
-3. Write environment file
-4. Install and activate systemd service and timer
-5. (Optional) Configure and activate port forwarding service and timer
+3. Create a `pia` service account
+4. Write environment file containing your credentials
+5. Install and activate systemd service and timer
+6. (Optional) Configure and activate port forwarding service and timer
 
 ## About
 
@@ -105,7 +125,7 @@ this depth-for-breadth tradeoff, and who also use `systemd-networkd` on their
 firewall.[^2]
 
 Because you can, _should_ you do this? I find little downside in using a fast
-WireGuard[wireguard]-based VPN. My VPN tunneled traffic is indistinguishably
+[WireGuard][wireguard]-based VPN. My VPN tunneled traffic is indistinguishably
 fast as untunneled traffic almost all of the time, and this suite is pretty
 much hands-free for me. So is it worth the tradeoff? For me, yes, only because
 the tradeoff is close to zero. I wouldn't do it if I had to make a meaningful
@@ -226,11 +246,12 @@ happen with IPv6 and DNS.
   wish to add firewall and/or routing rules to block outgoing IPv6. As it is,
   this example doesn't enable, disable, or otherwise address IPv6 networking.
 
-- **DNS**. Most connections start with a DNS lookup of a domain name. If that
-  lookup is sent to a public DNS server via a route outside of the VPN tunnel,
-  then you are leaking information about where you make connections. Even when
-  DNS queries are sent through the VPN tunnel, the DNS provider itself can
-  still log the lookup and its timing, although your ISP cannot observe it.
+- **DNS**. Most connections start with a DNS lookup of a domain name. If
+  that lookup is sent to a public DNS server via a route outside of the VPN
+  tunnel, then you are leaking information about where you make connections.
+  Even when DNS queries are sent through the VPN tunnel, the DNS provider
+  can still log the lookup and its timing; your ISP, however, only sees
+  encrypted traffic to the VPN endpoint and cannot observe the DNS contents.
   Best practice is to use the VPN-provided DNS servers, which are ostensibly
   zero-log. If you use DHCP on the LAN, you should therefore advertise PIA's
   DNS servers in option 6 (`domain-name-servers`). In practice, as of this
@@ -453,93 +474,69 @@ outputs =
 
 ### Install the tools
 
-    go install github.com/jdelkins/pia-tools/cmd/pia-setup-tunnel@latest
-    go install github.com/jdelkins/pia-tools/cmd/pia-portforward@latest     # optional
-    go install github.com/jdelkins/pia-tools/cmd/pia-listregions@latest     # optional
+    sudo env GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-setup-tunnel@latest
+    sudo env GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-portforward@latest   # optional
+    sudo env GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-listregions@latest   # optional
 
 ### Configure Tunnel Interface
 
-1. Set up `/etc/systemd/network/<interface>.netdev.tmpl` and
-   `/etc/systemd/network/<interface>.network.tmpl` template files. These
+Assuming you want the interface named `pia` (if not, replace path components
+with your preference).
+
+1. Set up `/etc/systemd/network/pia.netdev.tmpl` and
+   `/etc/systemd/network/pia.network.tmpl` template files. These
    templates use the Go package [`text/template`][text-template] to replace
    tokens with data received from [PIA][] when requesting the tunnel to be set
-   up. For example:
+   up. You can use the examples in [./systemd/network](./systemd/network)
+   and/or modify them to suit you.
 
-    `/etc/systemd/network/<interface>.netdev.tmpl`
-    ```
-    [NetDev]
-    Name={{ .Interface }}
-    Kind=wireguard
+   These examples should be pretty self-explanatory; if not, you should read
+   up on [systemd-networkd][] and/or [text/template][text-template]. For info
+   on what other template fields are available (though the examples demonstrate
+   (I think) all of the useful ones), check out [the Tunnel struct in the `pia`
+   package](./internal/pia/pia.go#L18). The template processing package includes
+   [sprig][], which provides a number of additional template functions, should
+   they come in handy.
 
-    [WireGuard]
-    PrivateKey={{ .PrivateKey }}
+2. Create a service account under which to run the service, and a cache directory.
 
-    [WireGuardPeer]
-    PublicKey={{ .ServerPubkey }}
-    AllowedIPs=0.0.0.0/0
-    Endpoint={{ .ServerIp }}:{{ .ServerPort }}
-    PersistentKeepalive=25
-    ```
+       sudo useradd --system --user-group --no-create-home --shell /usr/sbin/nologin pia
+       sudo install -d -o pia -g pia -m 0700 /var/cache/pia
 
-    `/etc/systemd/network/<interface>.network.tmpl`
-    ```
-    {{- $if := .Interface -}}
-    {{- $gw := .ServerVip -}}
-    [Match]
-    Name={{ $if }}
-    Type=wireguard
+   The `/var/cache/pia` directory will hold `.json` files to cache information
+   including your personal access tokens and WireGuard private keys. These files
+   do not store your [PIA][] username or password, but should still be treated
+   as private.
 
-    [Network]
-    Address={{ .PeerIp }}/32
-    {{- range .DnsServers }}
-    DNS={{ . }}
-    {{- end }}
+3. Create/edit the environment file containing your PIA credentials. You can
+   copy and edit [the example file](./systemd/pia.conf). Make it readable by the
+   `pia` user.
 
-    [Route]
-    Destination={{ $gw }}/32
-    Scope=link
+       sudo install -o root -g pia -m 0640 $REPO/systemd/pia.conf /etc/pia.conf
+       sudoedit /etc/pia.conf
 
-    {{ range .DnsServers -}}
-    [Route]
-    Destination={{ . }}/32
-    Gateway={{ $gw }}
+4. Install [the systemd service file](./systemd/system/pia-reset-tunnel@.service)
+   and [the systemd timer file](./systemd/system/pia-reset-tunnel@.timer) into
+   `/etc/systemd/system`, and then
 
-    {{ end -}}
+       sudo systemctl daemon-reload
+       sudo systemctl enable --now pia-reset-tunnel@pia.timer
 
-    [Route]
-    Destination=0.0.0.0/0
-    Gateway={{ $gw }}
-    GatewayOnLink=yes
-    ```
+   This will reset the tunnel once a week, on Wednesdays at 03:00, by default.
 
-    The above examples should be pretty self-explanatory; if not, you should
-    read up on [systemd-networkd][] and/or [text/template][text-template]. For
-    info on what other template fields are available (though the above examples
-    demonstrate (I think) all of the useful ones), check out [the Tunnel struct
-    in the `pia` package](./internal/pia/pia.go#L18). The template processing
-    package includes [sprig][], which provides a number of additional template
-    functions, should they come in handy.
+5. Activate the tunnel now, if you wish.
 
-2. `mkdir /var/cache/pia` and set the directory permissions as restrictive as
-   you can, probably `root:root` and mode `0700`. This directory will hold
-   `.json` files to cache information including your personal access tokens and
-   WireGuard private keys. These files do not store your [PIA][] username or
-   password, but should still be treated as private.
+       sudo systemctl start pia-reset-tunnel@pia.service
+       sudo networkctl status pia
+       sudo wg show pia
 
-3. Run `pia-setup-tunnel --username <user> --password <pass> --if-name <interface>`
-   as root to create the `.network` and `.netdev` files corresponding to the
-   templates created above.
+6. Adjust your network routing, if you wish, to send traffic selectively out
+   of the tunnel. You're on your own here, but for some clues, you might
+   check out the [NixOS example](#the-nixos-example).
 
-4. Inspect the generated files. If everything looks okay, run `systemctl
-   restart systemd-networkd` as root to reload your network stack and activate
-   the tunnel.
-
-That's it, you should have a VPN as your ipv4 default route (assuming you
+That's it, you should have a VPN as your IPv4 default route (assuming you
 configured the `.network` file as such). Use something like `curl -4
-icanhazip.com` to verify that the ip address is coming from PIA. Every few days
-or weeks, repeat steps 3 and 4 to establish a new tunnel. They are good for
-some period of time, but I recommend replacing it once a week for privacy
-reasons.
+icanhazip.com` to verify that the ip address is coming from PIA.
 
 ### Enabling Port Forwarding
 
@@ -624,15 +621,22 @@ VPN.
    nftables. This is not a lesson in firewall design, so again, you're on your
    own: the possibilities are numerous once you can get the forwarded port number.
 
-4. Every 15 minutes or so (using systemd timers or similar), run `pia-portforward
-   --if-name <interface> --refresh` in order to refresh the port forwarding
-   assignment using your cached authentication token. If you don't do this,
-   PIA will eventually reclaim the port for another customer, and traffic
-   meant for you could be delivered somewhere else! You don't want that.
-   My testing suggests that PIA is pretty conservative in this area, so
-   I think most reasonable failure cases (e.g. your ISP goes down for a
-   few hours, so you can't refresh) should be fine, but you definitely want
-   to keep refreshing the assignment as long as you're intending to use it.
+4. Every 15 minutes or so, run `pia-portforward --if-name <interface> --refresh`
+   in order to refresh the port forwarding assignment using your cached
+   authentication token. If you don't do this, PIA will eventually reclaim
+   the port for another customer, and traffic meant for you could be delivered
+   somewhere else! You don't want that. My testing suggests that PIA is pretty
+   conservative in this area, so I think most reasonable failure cases (e.g.
+   your ISP goes down for a few hours, so you can't refresh) should be fine,
+   but you definitely want to keep refreshing the assignment as long as you're
+   intending to use it.
+
+   You can install the provided systemd
+   [service](./systemd/system/pia-pf-refresh@.service) and
+   [timer](./systemd/system/pia-pf-refresh@.timer) files to accomplish this
+   refresh automatically. To activate:
+
+       sudo systemctl enable --now pia-pf-refresh@pia.timer
 
 ## CLI Usage
 
