@@ -19,19 +19,12 @@ you, and if it does, some assembly will be required by you. That said, I have
 used and developed it for a few years, and really enjoy the low-maintenance
 functionality and peace of mind it provides for me.
 
-If you use it yourself, and are able to identify additional features or
-encounter problems, I encourage you to submit an issue or PR. I will take any
-security concern very seriously, as my own system is on the line.
-
-The go programs in this suite aren't going to do anything to your system
-directly other than write some configuration files where you instruct it (by
-default `/etc/systemd/network`). The example systemd services take additional
-steps to invoke standard networking commands to read and act on those generated
-configuration files. It’s not doing anything exotic; it generates configuration
+These tools don't do anything exotic; they generate configuration
 files and then standard system tools apply them. Nevertheless, it is for a
-fairly advanced use case, not something for the average consumer. You could
-potentially break your networking if you don't know what you're doing, but
-that's also true of any networking toolkit.
+fairly advanced use case, not something for the average consumer.
+
+If you identify additional features or encounter problems, I encourage you to
+submit an issue or PR.
 
 If you use this on a remote firewall, ensure you have out-of-band access before
 experimenting with routing.
@@ -474,18 +467,20 @@ outputs =
 
 ## Manual Install
 
-### Install the tools
+### Tunnel Establishment
 
-    sudo env GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-setup-tunnel@latest
-    sudo env GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-portforward@latest   # optional
-    sudo env GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-listregions@latest   # optional
+1. Install the tools. This will require a go toolchain to be installed on your system.
+   The systemd units expect the binary will be installed in `/usr/local/bin`. If you
+   install somewhere else, you'll have to edit the `pia-reset-tunnel@.service` and
+   `pia-pf-refresh@.service` units after you install them in step 5 below.
 
-### Configure Tunnel Interface
+       sudo env GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-setup-tunnel@latest
+       sudo env GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-listregions@latest   # optional
 
-Assuming you want the interface named `pia` (if not, replace path components
-with your preference).
+2. The next steps assume you want the interface named `pia` (if not, replace
+   path components with your preferred interface name).
 
-1. Set up `/etc/systemd/network/pia.netdev.tmpl` and
+   Set up `/etc/systemd/network/pia.netdev.tmpl` and
    `/etc/systemd/network/pia.network.tmpl` template files. These
    templates use the Go package [`text/template`][text-template] to replace
    tokens with data received from [PIA][] when requesting the tunnel to be set
@@ -500,39 +495,67 @@ with your preference).
    [sprig][], which provides a number of additional template functions, should
    they come in handy.
 
-2. Create a service account under which to run the service, and a cache directory.
+       sudo install -o root -g root -m 0644 ./systemd/network/pia.net*.tmpl /etc/systemd/network/
+       sudoedit /etc/systemd/network/pia.netdev.tmpl
+       sudoedit /etc/systemd/network/pia.network.tmpl
+
+3. Create a service account under which to run the service, and a cache directory.
 
        sudo useradd --system --user-group --no-create-home --shell /usr/sbin/nologin pia
-       sudo install -d -o pia -g pia -m 0700 /var/cache/pia
+       sudo install -d -o pia -g pia -m 0750 /var/cache/pia
 
    The `/var/cache/pia` directory will hold `.json` files to cache information
    including your personal access tokens and WireGuard private keys. These files
    do not store your [PIA][] username or password, but should still be treated
    as private.
 
-3. Create/edit the environment file containing your PIA credentials. You can
+4. Create/edit the environment file containing your PIA credentials. You can
    copy and edit [the example file](./systemd/pia.conf). Make it readable by the
    `pia` user.
 
-       sudo install -o root -g pia -m 0640 $REPO/systemd/pia.conf /etc/pia.conf
+       sudo install -o root -g pia -m 0640 ./systemd/pia.conf /etc/pia.conf
        sudoedit /etc/pia.conf
 
-4. Install [the systemd service file](./systemd/system/pia-reset-tunnel@.service)
+5. Install [the systemd service file](./systemd/system/pia-reset-tunnel@.service)
    and [the systemd timer file](./systemd/system/pia-reset-tunnel@.timer) into
-   `/etc/systemd/system`, and then
+   `/etc/systemd/system`, and then enable the tunnel reset timer.
+
+       sudo install -o root -g root -m 0644 ./systemd/system/pia-*@.{timer,service} /etc/systemd/system/
+       # optional, edit for binary paths:
+       sudoedit /etc/systemd/system/pia-reset-tunnel@.service
+       sudoedit /etc/systemd/system/pia-pf-refresh@.service
+
+   When you're happy with the service and timer units, activate them.
 
        sudo systemctl daemon-reload
        sudo systemctl enable --now pia-reset-tunnel@pia.timer
 
-   This will reset the tunnel once a week, on Wednesdays at 03:00, by default.
+   This will reset the tunnel once a week, on Wednesdays at 03:00 by default.
 
-5. Activate the tunnel now, if you wish.
+6. You can activate the tunnel now.
 
        sudo systemctl start pia-reset-tunnel@pia.service
+
+   You can repeat this command whenever you want to forcibly tear down and
+   rebuild the tunnel with a new ip (and forwarded port, if configured).
+   It is a "oneshot" service, which, on invocation follows this basic
+   procedure:
+
+    - generates a new WireGuard keypair
+    - if region is "auto", determine the closest port-forward capable region
+    - registers the new WireGuard public key with PIA
+    - gets the connection details from PIA based on the configured (or auto-selected) region
+    - regenerates the systemd-networkd config files using the templates
+    - tears down the existing tunnel interface, if it exists
+    - tells networkd to build the interface from the new config
+
+7. Ensure it's working.
+
        sudo networkctl status pia
        sudo wg show pia
+       curl -4 ifconfig.me
 
-6. Adjust your network routing, if you wish, to send traffic selectively out
+8. Adjust your network routing, if you wish, to send traffic selectively out
    of the tunnel. You're on your own here, but for some clues, you might
    check out the [NixOS example](#the-nixos-example).
 
@@ -551,53 +574,38 @@ up a tunnel on a gateway. This tool is to enable running a server behind (or
 on) the gateway that accepts incoming connections to be accessible through the
 VPN.
 
-1. Make sure your WireGuard tunnel to PIA is up and running per the above
-   procedure. The following step presumes that you have a working route to
-   PIA's WireGuard endpoint virtual IP configured and working. It also assumes
-   that, as part of running the above procedure, the `pia-setup-tunnel` tool
-   saved some information in the file `/var/cache/pia/<interface>.json`. We
-   will read that file and add to it as part of the next step.
+1. Install the `pia-portforward` tool.
 
-2. For bittorrent users: Some protocols (including bittorrent) need to know the
-   externally reachable port. When that port is dynamic, as here, it requires
-   communicating the port number to your bittorrent server using some facility
-   provided by the server. Most popular bittorrent servers that I've looked into
-   have an RPC interface, which may need to be configured/enabled (see below).
+       sudo env GOBIN=/usr/local/bin go install github.com/jdelkins/pia-tools/cmd/pia-portforward@latest
 
-   The `pia-portforward` tool can help communicating this port number to two
-   popular bittorrent apps, namely [rtorrent][] and [transmission][]. (I haven't
-   gotten around to implementing a similar feature for [qbittorrent][], the
-   single most popular bittorrent server on seedboxes, because I personally
-   don't use it and no one has asked, but I believe the RPC capability is there
-   and it should be simple to add.)
+2. If you run a bittorrent server on your LAN (or on the router itself),
+   you can edit `/etc/pia.conf` to provide some additional details.
 
-   If you are running [rtorrent][] or [transmission][] as the server behind the
-   gateway, run, respectively, `pia-portforward --if-name <interface> --rtorrent
-   http://<rtorrent-ip>:<rtorrent-port>` or `pia-portforward --if-name
-   <interface> --transmission <transmission-ip>`. This will request a forwarding
-   port from [PIA][], activate it, and then inform [rtorrent][] or
-   [transmission][], respectively, about the port.
+       sudoedit /etc/pia.conf
 
-   - In the case of [rtorrent][], you may have to configure your instance to
-     accept XML-RPC queries on the `/RPC2` endpoint. **Note ☞**  Don't include
-     the `/RPC2` URL component in the `--rtorrent` parameter, as this is added
-     automatically.
+   For [transmission][], uncomment and set the variables
 
-   - In the case of [transmission][], if your instance is configured with
-     a username and password, provide those with the `--transmission-username`
-     and `--transmission-password` parameters
+   - `TRANSMISSION`: set to the server's web interface URL, with `/rpc` at the end, e.g. `http://192.168.100.100:9091/rpc`
+   - `TRANSMISSION_USERNAME`: if web access control is configured on transmission server, set to the username
+   - `TRANSMISSION_PASSWORD`: if web access control is configured on transmission server, set to the password
 
-3. If you don't have a bittorrent server running (or just don't want to use the
-   forwarded port for that), then just leave off the `--rtorrent` and
-   `--transmission` options. You're on your own to parse
-   `/var/cache/pia/<interface>.json` to obtain the assigned port and do
-   something with it, such as setting up a DNAT firewall rule. Most protocols
-   (http, for example) don't require the server to know the port number. (The
-   server process has to listen to a configured port, but, with nat firewalls, this
-   doesn't have to be the port that the client connects to). Such traffic can be handled
-   cleanly on the firewall by dnatting traffic delivered to PIA's forwarded port to a
-   static server port, locally on the firewall or elsewhere on the LAN side.
-   You could, for example:
+   For [rtorrent][], you will need a reverse proxy (lighttpd,
+   nginx, etc.) to front the SCGI interface via XMLRPC. See
+   [here](https://github.com/rakshasa/rtorrent-doc/blob/master/RPC-Setup-XMLRPC.md)
+   for instructions. These instructions indicate configuring the standard
+   location `/RPC2` for the XMLRPC interface. Please follow this convention.
+   Once that is up and running, you should set the `RTORRENT` variable to the
+   url of this reverse proxy server. Leave off the `/RPC2` part of the URL;
+   the tool adds this automatically.
+
+   - `RTORRENT`: set to reverse proxy URL, after configuring the `/RPC2` endpoint. e.g. `http://192.168.100.101:5000`
+
+   Other bittorrent servers are not supported currently, sorry.
+
+3. If you don't have a bittorrent server running (or just don't want
+   to use the forwarded port for that), you're on your own to parse
+   `/var/cache/pia/pia.json` to obtain the assigned port and do something with
+   it. For example, to forward the port to an internal web server, you could:
 
    ```sh
    IF=pia
@@ -608,37 +616,15 @@ VPN.
    nft add chain ip nat pia_portforward '{ type nat hook prerouting priority -100 }' 2>/dev/null || true
    nft flush chain ip nat pia_portforward
    nft add rule ip nat pia_portforward tcp dport $PORT dnat to $WEBSERVER
-   # add a rule to forward udp traffic if needed
    ```
 
-   ...which would create a nftables rule to forward incoming traffic on your
-   assigned port (retrieved from the json cache file) to an internal webserver
-   running on `192.168.0.80` at port 80. This example assumes your VPN WireGuard
-   interface is named `pia`.
-   
-   **Note ☞** The example above sets up the mechanism for forwarding
-   connections. Assuming you don't run a default-accept firewall (hopefully
-   you don't), then to actually permit such connections, you would also have to
-   also add a rule to accept them, typically somewhere in the `forward` chain in
-   nftables. This is not a lesson in firewall design, so again, you're on your
-   own: the possibilities are numerous once you can get the forwarded port number.
-
-4. Every 15 minutes or so, run `pia-portforward --if-name <interface> --refresh`
-   in order to refresh the port forwarding assignment using your cached
-   authentication token. If you don't do this, PIA will eventually reclaim
-   the port for another customer, and traffic meant for you could be delivered
-   somewhere else! You don't want that. My testing suggests that PIA is pretty
-   conservative in this area, so I think most reasonable failure cases (e.g.
-   your ISP goes down for a few hours, so you can't refresh) should be fine,
-   but you definitely want to keep refreshing the assignment as long as you're
-   intending to use it.
-
-   You can install the provided systemd
-   [service](./systemd/system/pia-pf-refresh@.service) and
-   [timer](./systemd/system/pia-pf-refresh@.timer) files to accomplish this
-   refresh automatically. To activate:
+4. Enable the timer to refresh the port forwarding assignment every 15 minutes
 
        sudo systemctl enable --now pia-pf-refresh@pia.timer
+
+5. To enable the port forwarding now, just re-build the tunnel.
+
+       sudo systemctl start pia-reset-tunnel@pia.service
 
 ## CLI Usage
 
@@ -863,16 +849,6 @@ pia-listregions
 pia-setup-tunnel --help
 pia-portforward --help
 ```
-
-#### Typical Workflow
-
-1. Run `pia-setup-tunnel` to (re-)configure the WireGuard interface files.
-2. Bring the interface up using systemd-networkd.
-3. Run `pia-portforward` to retrieve and apply the forwarded port to downstream services.
-4. Schedule `pia-portforward` periodically to renew the port forwarding lease.
-
-Both commands are designed to be automation-friendly and safe for use within
-systemd units like the included examples in the [systemd](./systemd) directory.
 
 ## Troubleshooting
 
