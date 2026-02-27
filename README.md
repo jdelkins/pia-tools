@@ -332,6 +332,8 @@ outputs =
 
               {{ end -}}
 
+              # NOTE: Default route goes in separate routing table. RPDB rules
+              #       must direct traffic to this table to use it.
               [Route]
               Destination=0.0.0.0/0
               Gateway={{ .ServerVip }}
