@@ -9,6 +9,8 @@ import (
 	"github.com/jdelkins/pia-tools/internal/pia"
 )
 
+type FileArgument map[string]string
+
 type CLI struct {
 	IfName    string `short:"i" aliases:"ifname" default:"pia" help:"Name of interface IF; default output/template paths derive from IF under /etc/systemd/network."`
 	Username  string `short:"u" env:"PIA_USERNAME" required:"" help:"PIA username (required; may also be set via PIA_USERNAME)."`
@@ -21,8 +23,8 @@ type CLI struct {
 	// Comma-separated key/value spec parsed into a map by Kong.
 	// Example:
 	//   --netdev-file=output=/etc/systemd/network/pia.netdev,template=/etc/systemd/network/pia.netdev.tmpl,mode=0440,owner=fred,group=systemd-network
-	NetdevFile  map[string]string `name:"netdev-file" mapsep:"," sep:"=" help:"File spec for generating the .netdev file (comma-separated key=value pairs). Keys: output,template,mode,owner,group"`
-	NetworkFile map[string]string `name:"network-file" mapsep:"," sep:"=" help:"File spec for generating the .network file (comma-separated key=value pairs). Keys: output,template,mode,owner,group"`
+	NetdevFile  FileArgument `name:"netdev-file" mapsep:"," sep:"=" help:"File spec for generating the .netdev file (comma-separated key=value pairs). Keys: output,template,mode,owner,group"`
+	NetworkFile FileArgument `name:"network-file" mapsep:"," sep:"=" help:"File spec for generating the .network file (comma-separated key=value pairs). Keys: output,template,mode,owner,group"`
 }
 
 func (c *CLI) AfterApply(ctx *kong.Context) error {
@@ -54,13 +56,13 @@ func (c *CLI) AfterApply(ctx *kong.Context) error {
 	return nil
 }
 
-func writeFiles(cli *CLI, tun *pia.Tunnel) {
-	if fs, err := fileops.Parse(cli.NetdevFile); err != nil {
+func writeFiles(netdev, network FileArgument, tun *pia.Tunnel) {
+	if fs, err := fileops.Parse(netdev); err != nil {
 		log.Panicf("Invalid --netdev-file: %v", err)
 	} else if err := fs.Generate(tun); err != nil {
 		log.Panicf("Could not generate netdev file: %v", err)
 	}
-	if fs, err := fileops.Parse(cli.NetworkFile); err != nil {
+	if fs, err := fileops.Parse(network); err != nil {
 		log.Panicf("Invalid --network-file: %v", err)
 	} else if err := fs.Generate(tun); err != nil {
 		log.Panicf("Could not generate network file: %v", err)
@@ -78,7 +80,7 @@ func main() {
 		if err != nil {
 			log.Panicf("Could not read cache: %v", err)
 		}
-		writeFiles(&cli, tun)
+		writeFiles(cli.NetdevFile, cli.NetworkFile, tun)
 		return
 	}
 
@@ -133,7 +135,7 @@ func main() {
 	}
 
 	// Finally, populate the templates
-	writeFiles(&cli, tun)
+	writeFiles(cli.NetdevFile, cli.NetworkFile, tun)
 
 	fmt.Println(tun.Status)
 }
