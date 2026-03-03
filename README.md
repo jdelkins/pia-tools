@@ -127,7 +127,7 @@ performance sacrifice or take on a significant administration burden.
 [^1]: I have no affiliation with [PIA][] other than as a customer. My opinions
 are my own, and I cannot endorse their, or any, VPN service. Caveat emptor.
 
-[^2]: I suspect it would be trivial to adapt this tool suite to another 
+[^2]: I suspect it would be trivial to adapt this tool suite to another
 WireGuard-friendly network stack, especially if it is configurable with text
 files. Heck, the official WireGuard client is written in go if I understand,
 so you could probably, almost as easily, directly set up the tunnels with
@@ -142,6 +142,18 @@ if you have a different networking preference.
 |------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [piawgcli](https://gitlab.com/ddb_db/piawgcli)             | Similar approach, also written in go, but without the port forwarding and NixOS features, and generates a wireguard-cli configuration file instead of systemd-networkd. |
 | [Official](https://github.com/pia-foss/manual-connections) | Bash scripts that accomplish a similar goal using plain-jane networking commands, like `ip`, `wg-quick` and so on. Also has a nice list of links to other alternatives. |
+
+Q: Why not use [miniupnp](https://github.com/miniupnp/miniupnp) (or similar) for
+port forwarding?
+
+A: PIA doesn't let you or your torrent software pick the port that gets
+forwarded, they select it for you in response to your authenticated API calls.
+UPnP IGD and NAT-PMP assume your ISP (in this case PIA) forwards your desired
+ports to your gateway; the UPnP/NAT-PMP protocols only deal between your
+gateway and the software on the LAN side. This assumption doesn't hold: PIA only
+forwards traffic having a destination port they assign to you. PCP (Port Control
+Protocol) could work for this in theory, if both PIA and Transmission supported
+it, but currently neither do.
 
 ## NixOS Module
 
