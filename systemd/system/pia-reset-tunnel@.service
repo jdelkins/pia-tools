@@ -51,3 +51,6 @@ MemoryDenyWriteExecute=true
 SystemCallArchitectures=native
 SystemCallFilter=~@clock @cpu-emulation @debug @module @mount @obsolete @raw-io @reboot @swap @resources
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+
+[Install]
+WantedBy=multi-user.target
