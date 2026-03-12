@@ -1,5 +1,7 @@
 [Unit]
 Description=Reconfigure PIA VPN tunnel on %I
+After=network-online.target
+Wants=network-online.target
 ConditionFileIsExecutable=/usr/local/bin/pia-setup-tunnel
 ConditionPathIsDirectory=/var/cache/pia
 ConditionPathExists=/etc/pia.conf
