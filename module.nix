@@ -193,19 +193,10 @@ in
     users.groups.pia = lib.mkIf (cfg.group == "pia") {
       members = [ cfg.user ];
     };
-    systemd.tmpfiles.settings."50-pia-${cfg.ifname}" =
-      let
-        mk = type: group: {
-          ${type} = {
-            inherit group;
-            inherit (cfg) user;
-            mode = if type == "d" then "0750" else "0640";
-          };
-        };
-      in
-      {
-        ${cfg.cacheDir} = mk "d" cfg.group;
-      };
+    systemd.tmpfiles.settings."50-pia-${cfg.ifname}".${cfg.cacheDir}.d = {
+      inherit (cfg) user group;
+      mode = "0750";
+    };
 
     # Tunnel reset service and timer
     systemd.services.${cfg.resetServiceName} = {
