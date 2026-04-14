@@ -267,7 +267,7 @@ in
             netdev = cfg.cacheDir + "/" + builtins.baseNameOf cfg.netdevFile;
             network = cfg.cacheDir + "/" + builtins.baseNameOf cfg.networkFile;
           in
-          ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cache-dir ${cfg.cacheDir} --region ${cfg.region} --if-name ${cfg.ifname} --netdev-file="template=${cfg.netdevTemplateFile},output=${netdev}" --network-file="template=${cfg.networkTemplateFile},output=${network}"'';
+          ''${cfg.package}/bin/pia-setup-tunnel --wg-binary ${pkgs.wireguard-tools}/bin/wg --cache-dir ${cfg.cacheDir} --region ${cfg.region} --if-name ${cfg.ifname} --netdev-file="template=${cfg.netdevTemplateFile},output=${netdev},mode=0440" --network-file="template=${cfg.networkTemplateFile},output=${network},mode=0444"'';
         ExecStartPost = [
           ''+${cfg.package}/bin/pia-setup-tunnel --from-cache --cache-dir ${cfg.cacheDir} --if-name ${cfg.ifname} --netdev-file="template=${cfg.netdevTemplateFile},output=${cfg.netdevFile},group=systemd-network,mode=0440" --network-file="template=${cfg.networkTemplateFile},output=${cfg.networkFile},mode=0444"''
           "-${pkgs.iproute2}/bin/ip link set down dev ${cfg.ifname}"
