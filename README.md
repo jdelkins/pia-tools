@@ -240,9 +240,9 @@ interface:
 - As written, the example uses the nftables-backed firewall; extraForwardRules
   are written in nft syntax. If you prefer iptables (I don't), adapt accordingly.
 
-#### Regarding DNS "leaks"
+#### Regarding VPN "leaks"
 
-DNS leaks happen when you allow some traffic to bypass the tunnel, such as can
+VPN leaks happen when you allow some traffic to bypass the tunnel, such as can
 happen with IPv6 and DNS.
 
 - **IPv6**. PIA doesn't provide IPv6 tunneling; it is an IPv4-only service. If
