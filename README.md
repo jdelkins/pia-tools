@@ -168,29 +168,29 @@ example](#nixos-detailed-example-configuration), which follows.
 
 ### NixOS Module options
 
-| Option                                   | Type                                | Description                                                                                                                                                                                                                                  |
-|------------------------------------------|-------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `services.pia-tools.enable`              | `bool`                              | Enable the pia-tools NixOS module.                                                                                                                                                                                                           |
-| `services.pia-tools.package`             | `package`                           | The pia-tools package to use.                                                                                                                                                                                                                |
-| `services.pia-tools.user`                | `string`                            | User to run the tool as.                                                                                                                                                                                                                     |
-| `services.pia-tools.group`               | `string`                            | Group to run the tool as.                                                                                                                                                                                                                    |
-| `services.pia-tools.cacheDir`            | `path`                              | Where to store tunnel descriptions in JSON format, containing private keys.                                                                                                                                                                  |
-| `services.pia-tools.ifname`              | `string`                            | Name of PIA WireGuard network interface.                                                                                                                                                                                                     |
-| `services.pia-tools.region`              | `string`                            | Region to connect to, or `auto` by default.                                                                                                                                                                                                  |
-| `services.pia-tools.rTorrentUrl`         | `null or string`                    | URL to rTorrent XML-RPC endpoint.                                                                                                                                                                                                            |
-| `services.pia-tools.transmissionUrl`     | `null or string`                    | Transmission RPC endpoint URL. If your Transmission server requires a username and password, set them in `config.services.pia-tools.envFile` with `TRANSMISSION_USERNAME` and `TRANSMISSION_PASSWORD`.                                       |
-| `services.pia-tools.qBittorrentUrl`      | `null or string`                    | Qbittorrent WebUI endpoint URL. If your Qbittorrent server requires auth, set the api key in `config.services.pia-tools.envFile` with `QBITTORRENT_APIKEY`.                                                                                  |
-| `services.pia-tools.envFile`             | `path`                              | **Required.** Path to a file that sets environment variables used to set up the tunnel device. Recognized variables include `PIA_USERNAME` and `PIA_PASSWORD` (required), plus optional `TRANSMISSION_USERNAME` and `TRANSMISSION_PASSWORD`. |
-| `services.pia-tools.resetServiceName`    | `string`                            | Name of systemd service for pia-tools tunnel reset.                                                                                                                                                                                          |
-| `services.pia-tools.resetTimerConfig`    | `null or systemd timerConfig attrs` | Timer defining frequency of resetting the tunnel. Set to `null` to disable.                                                                                                                                                                  |
-| `services.pia-tools.refreshServiceName`  | `string`                            | Name of systemd service for pia-tools tunnel port forwarding refresh (only relevant if portForwarding is enabled).                                                                                                                           |
-| `services.pia-tools.refreshTimerConfig`  | `null or systemd timerConfig attrs` | Timer defining frequency of refreshing the tunnel's port forwarding assignment. Set to `null` to disable.                                                                                                                                    |
-| `services.pia-tools.whitelistScript`     | `null or path`                      | Script to run when the WireGuard endpoint is established (e.g., add the endpoint IP to a firewall passlist). The script is called with the IP as the only argument. Set to `null` to ignore.                                                 |
-| `services.pia-tools.portForwarding`      | `bool`                              | Whether to request a port forwarding assignment from PIA.                                                                                                                                                                                    |
-| `services.pia-tools.netdevTemplateFile`  | `path`                              | `systemd.netdev` template used to generate the actual `.netdev`.                                                                                                                                                                             |
-| `services.pia-tools.networkTemplateFile` | `path`                              | `systemd.network` template used to generate the actual `.network`.                                                                                                                                                                           |
-| `services.pia-tools.netdevFile`          | `path`                              | Path at which to install the generated `.netdev` file.                                                                                                                                                                                       |
-| `services.pia-tools.networkFile`         | `path`                              | Path at which to install the generated `.network` file.                                                                                                                                                                                      |
+| Option                                   | Type                                | Description                                                                                                                                                                                                                                                  |
+| ---------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `services.pia-tools.enable`              | `bool`                              | Enable the pia-tools NixOS module.                                                                                                                                                                                                                           |
+| `services.pia-tools.package`             | `package`                           | The pia-tools package to use.                                                                                                                                                                                                                                |
+| `services.pia-tools.user`                | `string`                            | User to run the tool as.                                                                                                                                                                                                                                     |
+| `services.pia-tools.group`               | `string`                            | Group to run the tool as.                                                                                                                                                                                                                                    |
+| `services.pia-tools.cacheDir`            | `path`                              | Where to store tunnel descriptions in JSON format, containing private keys.                                                                                                                                                                                  |
+| `services.pia-tools.ifname`              | `string`                            | Name of PIA WireGuard network interface.                                                                                                                                                                                                                     |
+| `services.pia-tools.region`              | `string`                            | Region to connect to, or `auto` by default.                                                                                                                                                                                                                  |
+| `services.pia-tools.rTorrentUrl`         | `null or string`                    | URL to rTorrent XML-RPC endpoint.                                                                                                                                                                                                                            |
+| `services.pia-tools.transmissionUrl`     | `null or string`                    | Transmission RPC endpoint URL. If your Transmission server requires a username and password, set them in `config.services.pia-tools.envFile` with `TRANSMISSION_USERNAME` and `TRANSMISSION_PASSWORD`.                                                       |
+| `services.pia-tools.qBittorrentUrl`      | `null or string`                    | Qbittorrent WebUI endpoint URL. If your Qbittorrent server requires auth, set the username and password or alternatively the api key in `config.services.pia-tools.envFile` with `QBITTORRENT_USERNAME` and `QBITTORRENT_PASSWORD` or `QBITTORRENT_APIKEY` . |
+| `services.pia-tools.envFile`             | `path`                              | **Required.** Path to a file that sets environment variables used to set up the tunnel device. Recognized variables include `PIA_USERNAME` and `PIA_PASSWORD` (required), plus optional `TRANSMISSION_USERNAME` and `TRANSMISSION_PASSWORD`.                 |
+| `services.pia-tools.resetServiceName`    | `string`                            | Name of systemd service for pia-tools tunnel reset.                                                                                                                                                                                                          |
+| `services.pia-tools.resetTimerConfig`    | `null or systemd timerConfig attrs` | Timer defining frequency of resetting the tunnel. Set to `null` to disable.                                                                                                                                                                                  |
+| `services.pia-tools.refreshServiceName`  | `string`                            | Name of systemd service for pia-tools tunnel port forwarding refresh (only relevant if portForwarding is enabled).                                                                                                                                           |
+| `services.pia-tools.refreshTimerConfig`  | `null or systemd timerConfig attrs` | Timer defining frequency of refreshing the tunnel's port forwarding assignment. Set to `null` to disable.                                                                                                                                                    |
+| `services.pia-tools.whitelistScript`     | `null or path`                      | Script to run when the WireGuard endpoint is established (e.g., add the endpoint IP to a firewall passlist). The script is called with the IP as the only argument. Set to `null` to ignore.                                                                 |
+| `services.pia-tools.portForwarding`      | `bool`                              | Whether to request a port forwarding assignment from PIA.                                                                                                                                                                                                    |
+| `services.pia-tools.netdevTemplateFile`  | `path`                              | `systemd.netdev` template used to generate the actual `.netdev`.                                                                                                                                                                                             |
+| `services.pia-tools.networkTemplateFile` | `path`                              | `systemd.network` template used to generate the actual `.network`.                                                                                                                                                                                           |
+| `services.pia-tools.netdevFile`          | `path`                              | Path at which to install the generated `.netdev` file.                                                                                                                                                                                                       |
+| `services.pia-tools.networkFile`         | `path`                              | Path at which to install the generated `.network` file.                                                                                                                                                                                                      |
 
 ### NixOS Detailed Example Configuration
 
@@ -602,21 +602,28 @@ VPN.
    - `TRANSMISSION_USERNAME`: if web access control is configured on transmission server, set to the username
    - `TRANSMISSION_PASSWORD`: if web access control is configured on transmission server, set to the password
 
-   For [rtorrent][], you will need a reverse proxy (lighttpd,
-   nginx, etc.) to front the SCGI interface via XMLRPC. See
-   [here](https://github.com/rakshasa/rtorrent-doc/blob/master/RPC-Setup-XMLRPC.md)
-   for instructions. These instructions indicate configuring the standard
-   location `/RPC2` for the XMLRPC interface. Please follow this convention.
-   Once that is up and running, you should set the `RTORRENT` variable to the
-   url of this reverse proxy server. Leave off the `/RPC2` part of the URL;
-   the tool adds this automatically.
+    For [rtorrent][], you will need a reverse proxy (lighttpd,
+    nginx, etc.) to front the SCGI interface via XMLRPC. See
+    [here](https://github.com/rakshasa/rtorrent-doc/blob/master/RPC-Setup-XMLRPC.md)
+    for instructions. These instructions indicate configuring the standard
+    location `/RPC2` for the XMLRPC interface. Please follow this convention.
+    Once that is up and running, you should set the `RTORRENT` variable to the
+    url of this reverse proxy server. Leave off the `/RPC2` part of the URL;
+    the tool adds this automatically.
+    - `RTORRENT`: set to reverse proxy URL, after configuring the `/RPC2` endpoint. e.g. `http://192.168.100.101:5000`
 
-   - `RTORRENT`: set to reverse proxy URL, after configuring the `/RPC2` endpoint. e.g. `http://192.168.100.101:5000`
+    For [qbittorrent][], uncomment and set the variables
+    - `QBITTORRENT`: set to the server's web interface URL, with `/api/v2` at the end, e.g. `http://192.168.100.100:8080/api/v2`
+    - `QBITTORRENT_USERNAME`: if auth is configured for the qbittorrent server, set the username key.
+    - `QBITTORRENT_PASSWORD`: if auth is configured for the qbittorrent server, set the password key.
+    - Alternatively, `QBITTORRENT_APIKEY`: if an api key is configured for the qbittorrent server, set the api key. It can be generated in the qbittorrent WebUI.
 
-   For [qbittorrent][], uncomment and set the variables
+    Other bittorrent servers are not supported currently, sorry.
 
-   - `QBITTORRENT`: set to the server's web interface URL, with `/api/v2` at the end, e.g. `http://192.168.100.100:8080/api/v2`
-   - `QBITTORRENT_APIKEY`: if auth is configured for the qbittorrent server, set the api key. It can be generated in the qbittorrent WebUI.
+3.  If you don't have a bittorrent server running (or just don't want
+    to use the forwarded port for that), you're on your own to parse
+    `/var/cache/pia/pia.json` to obtain the assigned port and do something with
+    it. For example, to forward the port to an internal web server, you could:
 
    Other bittorrent servers are not supported currently, sorry.
 
@@ -786,6 +793,8 @@ This command must be executed after the tunnel is active.
 | `--transmission-username string` | TRANSMISSION_USERNAME | _none_  | Transmission RPC username (if required)                                 |
 | `--transmission-password string` | TRANSMISSION_PASSWORD | _none_  | Transmission RPC password (if required)                                 |
 | `--qbittorrent string`           | QBITTORRENT           | _none_  | Qbittorrent WebUI endpoint (if required)                                |
+| `--qbittorrent-username string`  | QBITTORRENT_USERNAME  | _none_  | Qbittorrent WebUI username key (if required)                            |
+| `--qbittorrent-password string`  | QBITTORRENT_PASSWORD  | _none_  | Qbittorrent WebUI password key (if required)                            |
 | `--qbittorrent-apikey string`    | QBITTORRENT_APIKEY    | _none_  | Qbittorrent WebUI api key (if required)                                 |
 | `--refresh`                      | _n/a_                 | _unset_ | Don't get a new port forwarding assignment, just refresh the active one |
 

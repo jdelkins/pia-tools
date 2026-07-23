@@ -90,8 +90,8 @@ in
     qBittorrentUrl = mkOption {
       description = ''
         Qbittorrent WebUI endpoint URL. If your qbittorrent WebUI requires auth,
-        you can set the api key in config.services.pia-tools.envFile, with
-        the variables QBITTORRENT_APIKEY.
+        you can set the username and password, or the api key in config.services.pia-tools.envFile,
+        with the variables QBITTORRENT_USERNAME and QBITTORRENT_PASSWORD or QBITTORRENT_APIKEY.
       '';
       type = types.nullOr types.str;
       default = null;
@@ -112,6 +112,8 @@ in
 
            TRANSMISSION_USERNAME
            TRANSMISSION_PASSWORD
+           QBITTORRENT_USERNAME
+           QBITTORRENT_PASSWORD
            QBITTORRENT_APIKEY
       '';
       type = types.path;
