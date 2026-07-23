@@ -6,6 +6,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/jdelkins/pia-tools/internal/pia"
+	"github.com/jdelkins/pia-tools/internal/qbittorrent"
 	"github.com/jdelkins/pia-tools/internal/rtorrent"
 	"github.com/jdelkins/pia-tools/internal/transmission"
 )
@@ -21,6 +22,8 @@ type CLI struct {
 	Transmission  string `name:"transmission" env:"TRANSMISSION" help:"URL of transmission server RPC endpoint (for port forward notifications)."`
 	TransUser     string `name:"transmission-username" env:"TRANSMISSION_USERNAME" help:"Transmission server username."`
 	TransPassword string `name:"transmission-password" env:"TRANSMISSION_PASSWORD" help:"Transmission server password."`
+	Qbittorrent   string `name:"qbittorrent" env:"QBITTORRENT" help:"URL of qbittorrent WebUI API endpoint."`
+	QbtApiKey     string `name:"qbittorrent-apikey" env:"QBITTORRENT_APIKEY" help:"The qbittorrent WebUI API key."`
 
 	CacheDir string `short:"c" aliases:"cachedir" default:"/var/cache/pia" help:"Directory in which to store security-sensitive cache files."`
 }
@@ -87,6 +90,20 @@ func main() {
 		}
 		if port != tun.PFSig.Port {
 			log.Panicf("PIA assigned us port %d, but transmission reports port is %d", tun.PFSig.Port, port)
+		}
+	}
+
+	// notify qbittorrent
+	if cli.Qbittorrent != "" {
+		if err := qbittorrent.Notify(&cli.Qbittorrent, &cli.QbtApiKey, tun.PFSig.Port); err != nil {
+			log.Panicf("Could not notify qbittorrent (at %s) of assigned port: %v", cli.Qbittorrent, err)
+		}
+		port, err := qbittorrent.Confirm(&cli.Qbittorrent, &cli.QbtApiKey)
+		if err != nil {
+			log.Panicf("Could not verify qbittorrent port: %v", err)
+		}
+		if port != tun.PFSig.Port {
+			log.Panicf("PIA assigned us port %d, but qbittorrent reports port is %d", tun.PFSig.Port, port)
 		}
 	}
 

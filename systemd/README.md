@@ -58,8 +58,9 @@ Assumes:
 4. If you wish, adjust the `.timer` files to change the timing of when the
    scripts are run.
 
-5. If you don't wish to use the rtorrent or transmission notification feature,
-   comment out the `RTORRENT=` or `TRANSMISSION=` lines in `/etc/pia.conf`
+5. If you don't wish to use the rtorrent, transmission or qbittorrent
+   notification feature, comment out the `RTORRENT=`, `TRANSMISSION=` and
+   `QBITTORRENT=` lines in `/etc/pia.conf`
 
 6. Enable the timers. Use whatever interface name you want in place of `wgpia0`.
 

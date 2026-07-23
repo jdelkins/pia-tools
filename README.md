@@ -179,6 +179,7 @@ example](#nixos-detailed-example-configuration), which follows.
 | `services.pia-tools.region`              | `string`                            | Region to connect to, or `auto` by default.                                                                                                                                                                                                  |
 | `services.pia-tools.rTorrentUrl`         | `null or string`                    | URL to rTorrent XML-RPC endpoint.                                                                                                                                                                                                            |
 | `services.pia-tools.transmissionUrl`     | `null or string`                    | Transmission RPC endpoint URL. If your Transmission server requires a username and password, set them in `config.services.pia-tools.envFile` with `TRANSMISSION_USERNAME` and `TRANSMISSION_PASSWORD`.                                       |
+| `services.pia-tools.qBittorrentUrl`      | `null or string`                    | Qbittorrent WebUI endpoint URL. If your Qbittorrent server requires auth, set the api key in `config.services.pia-tools.envFile` with `QBITTORRENT_APIKEY`.                                                                                  |
 | `services.pia-tools.envFile`             | `path`                              | **Required.** Path to a file that sets environment variables used to set up the tunnel device. Recognized variables include `PIA_USERNAME` and `PIA_PASSWORD` (required), plus optional `TRANSMISSION_USERNAME` and `TRANSMISSION_PASSWORD`. |
 | `services.pia-tools.resetServiceName`    | `string`                            | Name of systemd service for pia-tools tunnel reset.                                                                                                                                                                                          |
 | `services.pia-tools.resetTimerConfig`    | `null or systemd timerConfig attrs` | Timer defining frequency of resetting the tunnel. Set to `null` to disable.                                                                                                                                                                  |
@@ -612,6 +613,11 @@ VPN.
 
    - `RTORRENT`: set to reverse proxy URL, after configuring the `/RPC2` endpoint. e.g. `http://192.168.100.101:5000`
 
+   For [qbittorrent][], uncomment and set the variables
+
+   - `QBITTORRENT`: set to the server's web interface URL, with `/api/v2` at the end, e.g. `http://192.168.100.100:8080/api/v2`
+   - `QBITTORRENT_APIKEY`: if auth is configured for the qbittorrent server, set the api key. It can be generated in the qbittorrent WebUI.
+
    Other bittorrent servers are not supported currently, sorry.
 
 3. If you don't have a bittorrent server running (or just don't want
@@ -779,6 +785,8 @@ This command must be executed after the tunnel is active.
 | `--transmission string`          | TRANSMISSION          | _none_  | Transmission RPC endpoint (e.g., http://localhost:9091/rpc)             |
 | `--transmission-username string` | TRANSMISSION_USERNAME | _none_  | Transmission RPC username (if required)                                 |
 | `--transmission-password string` | TRANSMISSION_PASSWORD | _none_  | Transmission RPC password (if required)                                 |
+| `--qbittorrent string`           | QBITTORRENT           | _none_  | Qbittorrent WebUI endpoint (if required)                                |
+| `--qbittorrent-apikey string`    | QBITTORRENT_APIKEY    | _none_  | Qbittorrent WebUI api key (if required)                                 |
 | `--refresh`                      | _n/a_                 | _unset_ | Don't get a new port forwarding assignment, just refresh the active one |
 
 #### Example Usage
