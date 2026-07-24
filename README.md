@@ -613,10 +613,10 @@ VPN.
     - `RTORRENT`: set to reverse proxy URL, after configuring the `/RPC2` endpoint. e.g. `http://192.168.100.101:5000`
 
     For [qbittorrent][], uncomment and set the variables
-    - `QBITTORRENT`: set to the server's web interface URL, with `/api/v2` at the end, e.g. `http://192.168.100.100:8080/api/v2`
-    - `QBITTORRENT_USERNAME`: if auth is configured for the qbittorrent server, set the username key.
-    - `QBITTORRENT_PASSWORD`: if auth is configured for the qbittorrent server, set the password key.
-    - Alternatively, `QBITTORRENT_APIKEY`: if an api key is configured for the qbittorrent server, set the api key. It can be generated in the qbittorrent WebUI.
+    - `QBITTORRENT`: set to the server's web interface URL, with `/api/v2` (that's the default) at the end,
+      e.g. `http://192.168.100.100:8080/api/v2`
+    - `QBITTORRENT_USERNAME` and `QBITTORRENT_PASSWORD` or alternatively `QBITTORRENT_APIKEY`: if auth is configured for
+      the qbittorrent server, set the relevant values.
 
     Other bittorrent servers are not supported currently, sorry.
 
