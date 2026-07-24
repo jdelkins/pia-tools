@@ -85,10 +85,6 @@ type qbPreferences struct {
 }
 
 func Notify(server, apikey string, sessionCookie *http.Cookie, port int) error {
-	if apikey == "" && sessionCookie == nil {
-		return fmt.Errorf("Got nil api key and session cookie.")
-	}
-
 	reqUrl, err := url.Parse(server)
 	if err != nil {
 		return fmt.Errorf("Failed to parse server url. %s", server)
@@ -113,7 +109,7 @@ func Notify(server, apikey string, sessionCookie *http.Cookie, port int) error {
 
 	if apikey != "" {
 		req.Header.Set("Authorization", "Bearer "+apikey)
-	} else {
+	} else if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
 	req.Header.Set("User-Agent", "github.com/jdelkins/pia-tools")
@@ -131,10 +127,6 @@ func Notify(server, apikey string, sessionCookie *http.Cookie, port int) error {
 }
 
 func Confirm(server, apikey string, sessionCookie *http.Cookie) (int, error) {
-	if apikey == "" && sessionCookie == nil {
-		return 0, fmt.Errorf("Got nil api key and session cookie.")
-	}
-
 	url, err := url.Parse(server)
 	if err != nil {
 		return 0, fmt.Errorf("Failed to parse server url. %s", server)
@@ -147,7 +139,7 @@ func Confirm(server, apikey string, sessionCookie *http.Cookie) (int, error) {
 	}
 	if apikey != "" {
 		req.Header.Set("Authorization", "Bearer "+apikey)
-	} else {
+	} else if sessionCookie != nil {
 		req.AddCookie(sessionCookie)
 	}
 	req.Header.Set("User-Agent", "github.com/jdelkins/pia-tools")
