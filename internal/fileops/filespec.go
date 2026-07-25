@@ -106,7 +106,19 @@ func (s *FileSpec) Generate(tun *pia.Tunnel) error {
 	wgserver := func(t *pia.Tunnel) *pia.Server {
 		return t.Region.WgServer()
 	}
-	extraFuncs := template.FuncMap{"server": wgserver}
+	// Provide a string depiction of the filespec, for notating the template
+	// output if desired
+	spec := func() (string, error) {
+		m, err := s.MarshalText()
+		if err != nil {
+			return "", err
+		}
+		return string(m), nil
+	}
+	extraFuncs := template.FuncMap{
+		"server": wgserver,
+		"spec":   spec,
+	}
 
 	tmpl, err := template.New(filepath.Base(s.Template)).Funcs(sprig.TxtFuncMap()).Funcs(extraFuncs).ParseFiles(s.Template)
 	if err != nil {
