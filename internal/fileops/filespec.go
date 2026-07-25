@@ -103,9 +103,8 @@ func (s *FileSpec) Generate(tun *pia.Tunnel) error {
 	}
 
 	// Provide a helper used by the stock pia.netdev.tmpl.
-	wgserver := func(tuni any) any {
-		t := tuni.(*pia.Tunnel)
-		return any(t.Region.WgServer())
+	wgserver := func(t *pia.Tunnel) *pia.Server {
+		return t.Region.WgServer()
 	}
 	extraFuncs := template.FuncMap{"server": wgserver}
 
