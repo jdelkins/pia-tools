@@ -24,6 +24,7 @@ let
   serviceEnvFile = pkgs.writeText "service_params.sh" ''
     ${lib.optionalString (cfg.transmissionUrl != null) "TRANSMISSION=${cfg.transmissionUrl}"}
     ${lib.optionalString (cfg.rTorrentUrl != null) "RTORRENT=${cfg.rTorrentUrl}"}
+    ${lib.optionalString (cfg.qBittorrentUrl != null) "QBITTORRENT=${cfg.qBittorrentUrl}"}
   '';
 in
 {
@@ -86,6 +87,17 @@ in
       example = "http://192.168.100.100:9091/rpc/";
     };
 
+    qBittorrentUrl = mkOption {
+      description = ''
+        Qbittorrent WebUI endpoint URL. If your qbittorrent WebUI requires auth,
+        you can set the username and password, or the api key in config.services.pia-tools.envFile,
+        with the variables QBITTORRENT_USERNAME and QBITTORRENT_PASSWORD or QBITTORRENT_APIKEY.
+      '';
+      type = types.nullOr types.str;
+      default = null;
+      example = "http://192.168.100.100:8080/api/v2/";
+    };
+
     envFile = mkOption {
       description = ''
         Required. Path to file setting environment variables to be used
@@ -100,6 +112,9 @@ in
 
            TRANSMISSION_USERNAME
            TRANSMISSION_PASSWORD
+           QBITTORRENT_USERNAME
+           QBITTORRENT_PASSWORD
+           QBITTORRENT_APIKEY
       '';
       type = types.path;
     };

@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/alecthomas/kong"
 	"github.com/jdelkins/pia-tools/internal/pia"
+	"github.com/jdelkins/pia-tools/internal/qbittorrent"
 	"github.com/jdelkins/pia-tools/internal/rtorrent"
 	"github.com/jdelkins/pia-tools/internal/transmission"
 )
@@ -21,6 +23,10 @@ type CLI struct {
 	Transmission  string `name:"transmission" env:"TRANSMISSION" help:"URL of transmission server RPC endpoint (for port forward notifications)."`
 	TransUser     string `name:"transmission-username" env:"TRANSMISSION_USERNAME" help:"Transmission server username."`
 	TransPassword string `name:"transmission-password" env:"TRANSMISSION_PASSWORD" help:"Transmission server password."`
+	Qbittorrent   string `name:"qbittorrent" env:"QBITTORRENT" help:"URL of qbittorrent WebUI API endpoint."`
+	QbtApiKey     string `name:"qbittorrent-apikey" env:"QBITTORRENT_APIKEY" help:"The qbittorrent WebUI API key."`
+	QbtUser       string `name:"qbittorrent-username" env:"QBITTORRENT_USERNAME" help:"The qbittorrent WebUI username."`
+	QbtPassword   string `name:"qbittorrent-password" env:"QBITTORRENT_PASSWORD" help:"The qbittorrent WebUI password."`
 
 	CacheDir string `short:"c" aliases:"cachedir" default:"/var/cache/pia" help:"Directory in which to store security-sensitive cache files."`
 }
@@ -87,6 +93,34 @@ func main() {
 		}
 		if port != tun.PFSig.Port {
 			log.Panicf("PIA assigned us port %d, but transmission reports port is %d", tun.PFSig.Port, port)
+		}
+	}
+
+	// notify qbittorrent
+	if cli.Qbittorrent != "" {
+		var sessionCookie *http.Cookie
+		// prefer to use the api key if it is set
+		if cli.QbtApiKey == "" && cli.QbtUser != "" && cli.QbtPassword != "" {
+			sessionCookie, err = qbittorrent.Login(cli.Qbittorrent, cli.QbtUser, cli.QbtPassword)
+			if err != nil {
+				log.Panicf("Could not login to qbittorrent (at %s): %v", cli.Qbittorrent, err)
+			}
+		}
+		if err := qbittorrent.Notify(cli.Qbittorrent, cli.QbtApiKey, sessionCookie, tun.PFSig.Port); err != nil {
+			log.Panicf("Could not notify qbittorrent (at %s) of assigned port: %v", cli.Qbittorrent, err)
+		}
+		port, err := qbittorrent.Confirm(cli.Qbittorrent, cli.QbtApiKey, sessionCookie)
+		if err != nil {
+			log.Panicf("Could not verify qbittorrent port: %v", err)
+		}
+		if port != tun.PFSig.Port {
+			log.Panicf("PIA assigned us port %d, but qbittorrent reports port is %d", tun.PFSig.Port, port)
+		}
+		if sessionCookie != nil {
+			err = qbittorrent.Logout(cli.Qbittorrent, sessionCookie)
+			if err != nil {
+				log.Panicf("Failed to logout of qbittorrent: %v", err)
+			}
 		}
 	}
 
