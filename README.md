@@ -625,13 +625,6 @@ VPN.
     `/var/cache/pia/pia.json` to obtain the assigned port and do something with
     it. For example, to forward the port to an internal web server, you could:
 
-   Other bittorrent servers are not supported currently, sorry.
-
-3. If you don't have a bittorrent server running (or just don't want
-   to use the forwarded port for that), you're on your own to parse
-   `/var/cache/pia/pia.json` to obtain the assigned port and do something with
-   it. For example, to forward the port to an internal web server, you could:
-
    ```sh
    IF=pia
    PORT="$(jq -r '.PFSig.port' "/var/cache/pia/${IF}.json")"
