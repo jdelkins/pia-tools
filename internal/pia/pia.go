@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 )
 
 type Server struct {
@@ -36,14 +37,11 @@ func NewTunnel(region *Region, intf string) *Tunnel {
 	return &Tunnel{Region: *region, Interface: intf}
 }
 
-var _piaCertpool *x509.CertPool = nil
-
-func getPiaCertpool() *x509.CertPool {
-	if _piaCertpool == nil {
-		// This is PIA's self-signed CA certificate, which will expire on
-		// Apr 12 17:40:33 2034 GMT.
-		// Source: https://github.com/pia-foss/manual-connections/blob/master/ca.rsa.4096.crt
-		p, _ := pem.Decode([]byte(`
+var piaCertpool = sync.OnceValue(func() *x509.CertPool {
+	// This is PIA's self-signed CA certificate, which will expire on
+	// Apr 12 17:40:33 2034 GMT.
+	// Source: https://github.com/pia-foss/manual-connections/blob/master/ca.rsa.4096.crt
+	p, _ := pem.Decode([]byte(`
 -----BEGIN CERTIFICATE-----
 MIIHqzCCBZOgAwIBAgIJAJ0u+vODZJntMA0GCSqGSIb3DQEBDQUAMIHoMQswCQYD
 VQQGEwJVUzELMAkGA1UECBMCQ0ExEzARBgNVBAcTCkxvc0FuZ2VsZXMxIDAeBgNV
@@ -88,19 +86,18 @@ iyd1Fzx0yujuiXDROLhISLQDRjVVAvawrAtLZWYK31bY7KlezPlQnl/D9Asxe85l
 +no177N9L2Y+M9TcTA62ZyMXShHQGeh20rb4kK8f+iFX8NxtdHVSkxMEFSfDDyQ=
 -----END CERTIFICATE-----
 		`))
-		ca, _ := x509.ParseCertificate(p.Bytes)
-		_piaCertpool = x509.NewCertPool()
-		_piaCertpool.AddCert(ca)
-	}
-	return _piaCertpool
-}
+	ca, _ := x509.ParseCertificate(p.Bytes)
+	pool := x509.NewCertPool()
+	pool.AddCert(ca)
+	return pool
+})
 
 func doRequest(req *http.Request, server_name string) (*http.Response, error) {
 	c := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				ServerName: server_name,
-				RootCAs:    getPiaCertpool(),
+				RootCAs:    piaCertpool(),
 			},
 		},
 	}
