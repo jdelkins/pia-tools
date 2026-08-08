@@ -3,8 +3,8 @@
 A suite of tools for establishing a [WireGuard][wireguard] tunnel to [Private
 Internet Access][PIA] on Linux using [systemd-networkd][], based on [PIA’s REST
 API](https://github.com/pia-foss/manual-connections). It can also manage PIA’s
-port forwarding feature and optionally notify rTorrent and/or Transmission (via
-RPC) of the assigned port; this will allow receiving incoming BitTorrent peer
+port forwarding feature and optionally notify rTorrent, Transmission, or qBittorrent
+(via RPC) of the assigned port; this will allow receiving incoming BitTorrent peer
 connections over the VPN.
 
 A helper utility, `pia-listregions`, will show you, on your terminal, a ranked
