@@ -13,6 +13,13 @@ import (
 
 var httpClient = httpclient.New()
 
+// Drain small responses so their connections can be reused, but do not consume
+// arbitrarily large bodies when the response content is otherwise unused.
+func closeResponseBody(body io.ReadCloser) {
+	defer body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(body, 4096))
+}
+
 func Login(server, username, password string) (*http.Cookie, error) {
 	reqUrl, err := url.Parse(server)
 	if err != nil {
@@ -35,6 +42,7 @@ func Login(server, username, password string) (*http.Cookie, error) {
 	if resp, err = httpClient.Do(req); err != nil {
 		return nil, fmt.Errorf("Failed to get response from Qbittorrent: %v", err)
 	}
+	defer closeResponseBody(resp.Body)
 
 	// The WebUI API documents 200; retain support for servers returning 204.
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
@@ -72,6 +80,7 @@ func Logout(server string, sessionCookie *http.Cookie) error {
 	if resp, err = httpClient.Do(req); err != nil {
 		return fmt.Errorf("Failed to get response from Qbittorrent: %v", err)
 	}
+	defer closeResponseBody(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Got non-200 status code %d from Qbittorrent endpoint", resp.StatusCode)
@@ -119,6 +128,7 @@ func Notify(server, apikey string, sessionCookie *http.Cookie, port int) error {
 	if resp, err = httpClient.Do(req); err != nil {
 		return fmt.Errorf("Failed to get response from Qbittorrent: %v", err)
 	}
+	defer closeResponseBody(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Got non-200 status code %d from Qbittorrent", resp.StatusCode)
 	}
@@ -148,11 +158,11 @@ func Confirm(server, apikey string, sessionCookie *http.Cookie) (int, error) {
 	if resp, err = httpClient.Do(req); err != nil {
 		return 0, fmt.Errorf("Failed to get http response from endpoint Qbittorrent: %v", err)
 	}
+	defer closeResponseBody(resp.Body)
 	if resp.StatusCode != 200 {
 		return 0, fmt.Errorf("Got non-200 status code %d from Qbittorrent.", resp.StatusCode)
 	}
 
-	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return 0, fmt.Errorf("Error reading response body: %v", err)
