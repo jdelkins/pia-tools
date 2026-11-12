@@ -7,7 +7,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
-	"os"
 	"sync"
 )
 
@@ -129,31 +128,4 @@ func (tun *Tunnel) Activate() error {
 	}
 
 	return nil
-}
-
-func (tun *Tunnel) SaveCache(pathCache string) error {
-	path := fmt.Sprintf("%s/%s.json", pathCache, tun.Interface)
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o660)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	if err := json.NewEncoder(file).Encode(tun); err != nil {
-		return err
-	}
-	return nil
-}
-
-func ReadCache(pathCache string, ifname string) (*Tunnel, error) {
-	path := fmt.Sprintf("%s/%s.json", pathCache, ifname)
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	var tun Tunnel
-	if err := json.NewDecoder(file).Decode(&tun); err != nil {
-		return nil, err
-	}
-	return &tun, err
 }

@@ -34,6 +34,11 @@ experimenting with routing.
 - The cache contains WireGuard private keys and PIA API auth material (e.g.,
   tokens/port-forward signatures). Treat it as sensitive.
 
+- Cache writes use atomic replacement. Setup and port-forward commands serialize
+  operations per interface using `<interface>.lock` in the cache directory.
+  Locks are released when a command exits, but the lock files remain on disk;
+  do not remove them while commands are running.
+
 - A new WireGuard keypair is generated each time the tunnel is (re-)established.
 
 - The tools read PIA username/password (from env / envFile) but do not persist

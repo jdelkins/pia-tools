@@ -35,6 +35,12 @@ func main() {
 	var cli CLI
 	kong.Parse(&cli, kong.Name("pia-portforward"))
 
+	lock, err := pia.LockCache(cli.CacheDir, cli.IfName)
+	if err != nil {
+		log.Panicf("Could not lock cache: %v", err)
+	}
+	defer lock.Close()
+
 	// grab the cached tunnel info
 	tun, err := pia.ReadCache(cli.CacheDir, cli.IfName)
 	if err != nil {

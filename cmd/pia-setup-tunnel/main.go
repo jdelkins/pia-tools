@@ -73,6 +73,12 @@ func main() {
 	var cli CLI
 	kong.Parse(&cli, kong.Name("pia-setup-tunnel"))
 
+	lock, err := pia.LockCache(cli.CacheDir, cli.IfName)
+	if err != nil {
+		log.Panicf("Could not lock cache: %v", err)
+	}
+	defer lock.Close()
+
 	// If directed to use cached info, just read the cache and write the files
 	if cli.FromCache {
 		// grab the cached tunnel info
