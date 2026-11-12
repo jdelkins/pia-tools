@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"text/tabwriter"
@@ -14,9 +15,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	if err := writeRegions(os.Stdout, regions); err != nil {
+		log.Fatalf("Could not write regions: %v", err)
+	}
+}
 
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "ID",             "NAME",                    "PING",      "WG?", "PF?")
+func writeRegions(output io.Writer, regions []pia.Region) error {
+	w := tabwriter.NewWriter(output, 0, 0, 2, ' ', 0)
+
+	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "ID", "NAME", "PING", "WG?", "PF?")
 	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "==============", "=======================", "=========", "===", "===")
 	for i := range regions {
 		r := &regions[i]
@@ -34,5 +41,5 @@ func main() {
 			fmt.Fprintf(w, "%s\t%s\t%d ms\t%s\t%s\n", r.Id, r.Name, r.PingTime.Milliseconds(), wg, pf)
 		}
 	}
-	w.Flush()
+	return w.Flush()
 }

@@ -74,6 +74,13 @@ func main() {
 		log.Panicf("Could not bind port forwarding assignment: %v", err)
 	}
 
+	notifyClients(&cli, tun)
+
+	// success!
+	fmt.Printf("%s: %s (Port = %d)\n", tun.Status, tun.Message, tun.PFSig.Port)
+}
+
+func notifyClients(cli *CLI, tun *pia.Tunnel) {
 	// notify rtorrent
 	if cli.Rtorrent != "" {
 		if err := rtorrent.Notify(cli.Rtorrent, tun.PFSig.Port); err != nil {
@@ -105,6 +112,7 @@ func main() {
 	// notify qbittorrent
 	if cli.Qbittorrent != "" {
 		var sessionCookie *http.Cookie
+		var err error
 		// prefer to use the api key if it is set
 		if cli.QbtApiKey == "" && cli.QbtUser != "" && cli.QbtPassword != "" {
 			sessionCookie, err = qbittorrent.Login(cli.Qbittorrent, cli.QbtUser, cli.QbtPassword)
@@ -129,7 +137,4 @@ func main() {
 			}
 		}
 	}
-
-	// success!
-	fmt.Printf("%s: %s (Port = %d)\n", tun.Status, tun.Message, tun.PFSig.Port)
 }
