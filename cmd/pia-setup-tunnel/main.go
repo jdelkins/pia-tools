@@ -113,13 +113,12 @@ func main() {
 		}
 	}
 
+	setupTunnel(&cli, reg)
+}
+
+func setupTunnel(cli *CLI, reg *pia.Region) {
 	// Create a Tunnel struct and populate it with fresh WG keys and an access token
 	tun := pia.NewTunnel(reg, cli.IfName)
-	defer func() {
-		if err := tun.SaveCache(cli.CacheDir); err != nil {
-			log.Panicf("Could not save cache: %v", err)
-		}
-	}()
 	if err := genKeypair(tun, cli.WGBinary); err != nil {
 		log.Panicf("Could not generate keypair: %v", err)
 	}
@@ -136,6 +135,11 @@ func main() {
 
 	// Finally, populate the templates
 	writeFiles(cli.NetdevFile, cli.NetworkFile, tun)
+
+	// Only replace cached tunnel state after setup has completed successfully.
+	if err := tun.SaveCache(cli.CacheDir); err != nil {
+		log.Panicf("Could not save cache: %v", err)
+	}
 
 	fmt.Println(tun.Status)
 }
