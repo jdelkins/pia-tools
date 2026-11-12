@@ -2,7 +2,7 @@
 
 pkgs.buildGoModule {
   pname = "pia-tools";
-  version = "2.1.0";
+  version = "2.2.0";
   src = ./.;
   vendorHash = "sha256-6WdBQylihIMCliB1wwJqkAVSbSLCq0p332+10Tff8ss=";
   env.CGO_ENABLED = 0;
