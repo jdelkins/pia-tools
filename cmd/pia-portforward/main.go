@@ -17,7 +17,7 @@ type CLI struct {
 	Username string `short:"u" name:"username" env:"PIA_USERNAME" help:"PIA username (required if token expired)."`
 	Password string `short:"p" name:"password" env:"PIA_PASSWORD" help:"PIA password (required if token expired)."`
 
-	Refresh bool `short:"r" name:"refresh" help:"Refresh cached port assignment rather than requesting a new one."`
+	Refresh bool `short:"r" name:"refresh" help:"Refresh the cached port assignment, requesting a new one if missing or expired."`
 
 	Rtorrent      string `name:"rtorrent" env:"RTORRENT" help:"XML-RPC URL of rtorrent server (for port forward notifications)."`
 	Transmission  string `name:"transmission" env:"TRANSMISSION" help:"URL of transmission server RPC endpoint (for port forward notifications)."`
@@ -62,8 +62,8 @@ func main() {
 		}
 	}
 
-	// request new port unless --refresh
-	if !cli.Refresh {
+	// Keep a valid cached assignment on --refresh; otherwise obtain a new one.
+	if !cli.Refresh || !tun.PFSig.Valid() {
 		if err := tun.NewPFSig(); err != nil {
 			log.Panicf("Could not get port forwarding signature: %v", err)
 		}

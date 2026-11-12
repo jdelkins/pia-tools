@@ -15,6 +15,11 @@ type PortForwardSig struct {
 	Payload   string    `json:"payload"`
 }
 
+func (sig PortForwardSig) Valid() bool {
+	return sig.Port > 0 && sig.Port <= 65535 &&
+		sig.Signature != "" && sig.Payload != "" && time.Now().Before(sig.Expiry)
+}
+
 func (tun *Tunnel) NewPFSig() error {
 	// Explanation of PIA's /getSignature endpoint
 	// You call this endpoint with a valid token, and it returns a json string

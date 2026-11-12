@@ -794,7 +794,7 @@ This command must be executed after the tunnel is active.
 | `--qbittorrent-username string`  | QBITTORRENT_USERNAME  | _none_  | Qbittorrent WebUI username key (if required)                            |
 | `--qbittorrent-password string`  | QBITTORRENT_PASSWORD  | _none_  | Qbittorrent WebUI password key (if required)                            |
 | `--qbittorrent-apikey string`    | QBITTORRENT_APIKEY    | _none_  | Qbittorrent WebUI api key (if required)                                 |
-| `--refresh`                      | _n/a_                 | _unset_ | Don't get a new port forwarding assignment, just refresh the active one |
+| `--refresh`                      | _n/a_                 | _unset_ | Refresh the cached assignment; request a new one if missing or expired |
 
 #### Example Usage
 
@@ -837,6 +837,10 @@ be called from a systemd timer or cron, but works fine from the CLI too, if you
 can remember to do so every 15 minutes. Supply credentials, as the cached token
 has a finite valid lifetime; with the username and password, we can grab a new
 one if necessary.
+
+If the cached port-forward signature is missing, incomplete, or expired, refresh
+requests a new assignment automatically. Configured torrent clients are notified
+of the resulting port as usual.
 
 ```sh
 export PIA_USERNAME=user
