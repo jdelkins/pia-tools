@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+
+	"github.com/jdelkins/pia-tools/internal/httpclient"
 )
 
 type Server struct {
@@ -91,8 +93,11 @@ iyd1Fzx0yujuiXDROLhISLQDRjVVAvawrAtLZWYK31bY7KlezPlQnl/D9Asxe85l
 	return pool
 })
 
+var publicHTTPClient = httpclient.New()
+
 func doRequest(req *http.Request, server_name string) (*http.Response, error) {
 	c := &http.Client{
+		Timeout: httpclient.Timeout,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
 				ServerName: server_name,

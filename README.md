@@ -879,6 +879,11 @@ pia-portforward --help
 
 ## Troubleshooting
 
+HTTP requests have a 30-second timeout, including response body reads. The
+included systemd units and NixOS module also set `TimeoutStartSec=5min` for the
+tunnel reset and port-forward refresh services, so a stalled command or lock
+wait cannot block a oneshot service indefinitely.
+
 The `pia-listregions` tool attempts to send a non-root ping. If this is not
 permitted by default on your system, run the binary as root or else it must be
 enabled with a sysctl command like the following:

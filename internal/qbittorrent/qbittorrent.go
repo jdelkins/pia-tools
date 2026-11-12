@@ -8,8 +8,10 @@ import (
 	"net/url"
 	"strings"
 
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
+	"github.com/jdelkins/pia-tools/internal/httpclient"
 )
+
+var httpClient = httpclient.New()
 
 func Login(server, username, password string) (*http.Cookie, error) {
 	reqUrl, err := url.Parse(server)
@@ -30,7 +32,7 @@ func Login(server, username, password string) (*http.Cookie, error) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	var resp *http.Response
-	if resp, err = cleanhttp.DefaultPooledClient().Do(req); err != nil {
+	if resp, err = httpClient.Do(req); err != nil {
 		return nil, fmt.Errorf("Failed to get response from Qbittorrent: %v", err)
 	}
 
@@ -67,7 +69,7 @@ func Logout(server string, sessionCookie *http.Cookie) error {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	var resp *http.Response
-	if resp, err = cleanhttp.DefaultPooledClient().Do(req); err != nil {
+	if resp, err = httpClient.Do(req); err != nil {
 		return fmt.Errorf("Failed to get response from Qbittorrent: %v", err)
 	}
 
@@ -114,7 +116,7 @@ func Notify(server, apikey string, sessionCookie *http.Cookie, port int) error {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	var resp *http.Response
-	if resp, err = cleanhttp.DefaultPooledClient().Do(req); err != nil {
+	if resp, err = httpClient.Do(req); err != nil {
 		return fmt.Errorf("Failed to get response from Qbittorrent: %v", err)
 	}
 	if resp.StatusCode != http.StatusOK {
@@ -143,7 +145,7 @@ func Confirm(server, apikey string, sessionCookie *http.Cookie) (int, error) {
 	req.Header.Set("User-Agent", "github.com/jdelkins/pia-tools")
 
 	var resp *http.Response
-	if resp, err = cleanhttp.DefaultPooledClient().Do(req); err != nil {
+	if resp, err = httpClient.Do(req); err != nil {
 		return 0, fmt.Errorf("Failed to get http response from endpoint Qbittorrent: %v", err)
 	}
 	if resp.StatusCode != 200 {

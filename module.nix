@@ -221,6 +221,7 @@ in
       serviceConfig = {
         User = cfg.user;
         Type = "oneshot";
+        TimeoutStartSec = "5min";
         ReadWritePaths = lib.unique [
           (builtins.dirOf cfg.netdevFile)
           (builtins.dirOf cfg.networkFile)
@@ -316,6 +317,7 @@ in
       serviceConfig = {
         User = cfg.user;
         Type = "oneshot";
+        TimeoutStartSec = "5min";
         EnvironmentFile = [
           serviceEnvFile
           cfg.envFile

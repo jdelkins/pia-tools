@@ -5,7 +5,10 @@ import (
 	"net/url"
 
 	xm "github.com/hekmon/transmissionrpc/v3"
+	"github.com/jdelkins/pia-tools/internal/httpclient"
 )
+
+var httpClient = httpclient.New()
 
 func Notify(server, username, password string, port int) error {
 	endpoint, err := url.Parse(server)
@@ -17,7 +20,7 @@ func Notify(server, username, password string, port int) error {
 		endpoint.User = url.UserPassword(username, password)
 	}
 
-	config := xm.Config{}
+	config := xm.Config{CustomClient: httpClient}
 
 	client, err := xm.New(endpoint, &config)
 	if err != nil {
@@ -27,7 +30,8 @@ func Notify(server, username, password string, port int) error {
 	args := xm.SessionArguments{
 		PeerPort: &port64,
 	}
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), httpclient.Timeout)
+	defer cancel()
 	if err = client.SessionArgumentsSet(ctx, args); err != nil {
 		return err
 	}
@@ -44,13 +48,14 @@ func Confirm(server, username, password string) (int, error) {
 		endpoint.User = url.UserPassword(username, password)
 	}
 
-	config := xm.Config{}
+	config := xm.Config{CustomClient: httpClient}
 
 	client, err := xm.New(endpoint, &config)
 	if err != nil {
 		return 0, err
 	}
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), httpclient.Timeout)
+	defer cancel()
 	args, err := client.SessionArgumentsGet(ctx, []string{"peer-port"})
 	if err != nil {
 		return 0, err

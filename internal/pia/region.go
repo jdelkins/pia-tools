@@ -3,7 +3,6 @@ package pia
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"sort"
 	"sync"
@@ -95,7 +94,7 @@ func RegionsWithPingTime() ([]Region, error) {
 
 func Regions() ([]Region, error) {
 	const pia_url_servers = "https://serverlist.piaservers.net/vpninfo/servers/v4"
-	resp, err := http.Get(pia_url_servers)
+	resp, err := publicHTTPClient.Get(pia_url_servers)
 	if err != nil {
 		return nil, err
 	}

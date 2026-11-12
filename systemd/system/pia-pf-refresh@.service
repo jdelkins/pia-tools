@@ -8,4 +8,5 @@ ConditionPathExists=/etc/pia.conf
 User=pia
 EnvironmentFile=/etc/pia.conf
 Type=oneshot
+TimeoutStartSec=5min
 ExecStart=/usr/local/bin/pia-portforward --if-name %I --refresh
