@@ -34,19 +34,17 @@ func Login(server, username, password string) (*http.Cookie, error) {
 		return nil, fmt.Errorf("Failed to get response from Qbittorrent: %v", err)
 	}
 
-	// WebUI docs say only status 200 will be returned, it actually seems to return 204
-	if resp.StatusCode != http.StatusNoContent {
-		return nil, fmt.Errorf("Got non-204 status code %d from Qbittorrent endpoint", resp.StatusCode)
+	// The WebUI API documents 200; retain support for servers returning 204.
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return nil, fmt.Errorf("Got unexpected status code %d from Qbittorrent login endpoint", resp.StatusCode)
 	}
 
-	cookies := resp.Cookies()
-	if len(cookies) == 0 {
-		return nil, fmt.Errorf("Did not recieve session cookie back from Qbittorrent")
-	} else if len(cookies) > 1 {
-		return nil, fmt.Errorf("Got %d cookies back from Qbittorrent, more than the 1 expected.", len(cookies))
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == "SID" && cookie.Value != "" {
+			return cookie, nil
+		}
 	}
-	sessionCookie := cookies[0]
-	return sessionCookie, nil
+	return nil, fmt.Errorf("Did not receive session cookie back from Qbittorrent")
 }
 
 func Logout(server string, sessionCookie *http.Cookie) error {
